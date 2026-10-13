@@ -59,6 +59,8 @@ button { font: inherit; color: inherit; }
 .tile .cap { display: flex; justify-content: space-between; padding: 6px 8px; font-size: 14px; font-variant-numeric: tabular-nums; }
 .tile .cap .w { color: var(--warn); }
 .table { margin-top: 16px; color: var(--muted); }
+.table.info { margin: 0 0 14px; }
+.table.info .notes { margin-top: 0; }
 .table summary { padding: 8px 0; cursor: pointer; }
 .table pre { margin: 0; overflow-x: auto; font-size: 12.5px; line-height: 1.6; color: var(--text); }
 .g-foot { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; justify-content: center; padding: 10px 14px calc(var(--safe-b) + 10px); background: linear-gradient(transparent, var(--bg) 35%); }
