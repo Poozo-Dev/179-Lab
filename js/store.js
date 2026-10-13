@@ -51,6 +51,9 @@ async function run(stores, mode, fn) {
 
 export const getSession = () => run('meta', 'readonly', (tx) => tx.objectStore('meta').get('session'));
 export const setSession = (s) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put(s, 'session'); });
+// Manually placed object positions: { [frameIndex]: {x, y} } in pixels of the saved image. Kept in 'meta'.
+export const getMarks = () => run('meta', 'readonly', (tx) => tx.objectStore('meta').get('marks')).then((m) => m || {});
+export const setMarks = (m) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put(m, 'marks'); });
 export const listFrames = () => run('frames', 'readonly', (tx) => tx.objectStore('frames').getAll());
 export const getImage = (index) => run('images', 'readonly', (tx) => tx.objectStore('images').get(index));
 export const putFrame = (frameRec, imageRec) => run(['frames', 'images'], 'readwrite', (tx) => {

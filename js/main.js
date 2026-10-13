@@ -158,17 +158,18 @@ async function onRecStopped(session, err) {
 
 // ---------- screens ----------
 async function goGallery(notice) {
-  let session, frames;
+  let session, frames, marks = {};
   try {
     session = await store.getSession();
     frames = session ? await store.listFrames() : [];
+    if (session) marks = await store.getMarks();
   } catch (e) { storageOk = false; showCameraScreen(); showMsg(e.message, false); return; }
   if (!session) { showCameraScreen(); return; }
   frames.sort((a, b) => a.index - b.index);
   screen = 'gallery';
   el.cam.hidden = true;
   showGallery({
-    session, frames, notice,
+    session, frames, marks, notice,
     onAgain: () => {
       if (confirm('Starting a new recording deletes the frames shown here. Continue?')) showCameraScreen();
     },

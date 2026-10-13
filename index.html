@@ -54,6 +54,7 @@
     </header>
     <div id="g-quality" class="banner"></div>
     <ul id="g-notes" class="notes"></ul>
+    <p class="muted tip">Tip: open a frame, tap <b>Add position</b> and tap the object. Mark several frames, then press <b>Plot</b>.</p>
     <div id="g-grid" class="grid"></div>
     <details class="table">
       <summary>Timing table (all frames)</summary>
@@ -61,6 +62,7 @@
     </details>
     <footer class="g-foot">
       <button id="btn-again" class="btn">Record again</button>
+      <button id="btn-plot" class="btn primary">Plot</button>
       <button id="btn-finish" class="btn danger">Finish &amp; clear data</button>
     </footer>
   </section>
@@ -69,15 +71,35 @@
   <div id="viewer" hidden>
     <div id="v-top">
       <button id="v-close" class="vbtn" aria-label="Close">✕</button>
-      <div id="v-cap"><b id="v-title"></b><span id="v-line"></span><span id="v-warn"></span></div>
+      <div id="v-cap"><b id="v-title"></b><span id="v-line"></span><span id="v-warn"></span><span id="v-hint"></span></div>
       <button id="v-save" class="vbtn" aria-label="Save image">Save</button>
     </div>
-    <div id="v-stage"><img id="v-img" alt="" draggable="false"></div>
+    <div id="v-stage"><img id="v-img" alt="" draggable="false"><svg id="v-marks" aria-hidden="true"></svg></div>
+    <div id="v-tools">
+      <button id="v-addpos" class="vbtn tool">Add position</button>
+      <button id="v-rempos" class="vbtn" hidden>Remove</button>
+      <button id="v-fit" class="vbtn">Fit</button>
+    </div>
     <div id="v-bottom">
       <button id="v-prev" class="vbtn big" aria-label="Previous frame">‹</button>
-      <button id="v-fit" class="vbtn">Fit</button>
+      <span id="v-count" class="muted"></span>
       <button id="v-next" class="vbtn big" aria-label="Next frame">›</button>
     </div>
+  </div>
+
+  <!-- ===== Plot of the marked positions ===== -->
+  <div id="plot" hidden>
+    <div id="p-top">
+      <button id="p-close" class="vbtn" aria-label="Close">✕</button>
+      <b id="p-title">Plot</b>
+      <button id="p-save" class="vbtn" aria-label="Save plot as image">Save</button>
+    </div>
+    <div id="p-modes" class="chips">
+      <button class="chip" data-mode="traj">Trajectory y(x)</button>
+      <button class="chip" data-mode="time">Height y(t)</button>
+    </div>
+    <div id="p-wrap"><canvas id="p-canvas"></canvas></div>
+    <ul id="p-info" class="notes"></ul>
   </div>
 
   <noscript><p style="padding:2rem;color:#fff">This app needs JavaScript.</p></noscript>

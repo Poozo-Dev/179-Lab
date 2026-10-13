@@ -2,10 +2,10 @@
 // Strategy: pre-cache the app shell on install; afterwards answer from cache immediately and refresh the
 // cache from the network in the background (stale-while-revalidate), so a redeployed update arrives on the
 // next launch without anyone having to bump a version number.
-const CACHE = 'physlab-shell-v1';
+const CACHE = 'physlab-shell-v2';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
-  'js/main.js', 'js/config.js', 'js/timing.js', 'js/frame-source.js', 'js/recorder.js', 'js/store.js', 'js/gallery.js',
+  'js/main.js', 'js/config.js', 'js/timing.js', 'js/frame-source.js', 'js/recorder.js', 'js/store.js', 'js/gallery.js', 'js/plot.js', 'js/fit.js', 'js/save.js',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

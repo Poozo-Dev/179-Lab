@@ -20,6 +20,20 @@ use after the first load. Everything (camera, images, timestamps) stays on the p
 5. **Stopping ≠ finishing.** Frames stay on the phone (also after reloads/restarts) until you press
    **Finish & clear data**. **Record again** also deletes the current frames (after a confirmation).
 
+### Marking positions and plotting (new)
+
+1. In the full-size viewer tap **Add position**, then tap the object in the picture. A red dot appears; tap
+   elsewhere to move it, **Move position** / **Remove** change it later. Pinch-zoom first for a precise position
+   (marks are stored in pixels of the saved image, so zoom and pan do not matter). Dots of the other frames are
+   shown faded, and thumbnails with a mark get a red dot. Marks are saved on the phone like the images.
+2. In the gallery press **Plot (n)** (between *Record again* and *Finish*). A white canvas shows the red points
+   labelled with their timestamps and the least-squares parabola `y = a·x² + b·x + c` with R².
+   **Trajectory y(x)** is for projectile motion; **Height y(t)** also works for free fall (where all x are equal).
+   **Save** stores the plot as a PNG.
+3. y is measured **upward from the bottom edge** of the picture, in pixels. The camera must not move. Nothing is
+   converted to metres (measure a known length, e.g. the ruler, for that). With exactly 3 points the parabola
+   fits perfectly by construction; mark more frames for a meaningful R².
+
 If the timing check fails (⚠ on frames, red banner) the app tells you to repeat the experiment — it never
 silently presents doubtful times as good ones.
 
@@ -34,9 +48,12 @@ js/timing.js                PURE logic: nearest-frame selection, quality checks,
 js/frame-source.js          camera + frame/timestamp sources (VideoFrame path, requestVideoFrameCallback path)
 js/recorder.js              frame selection -> JPEG encoding -> IndexedDB
 js/store.js                 IndexedDB wrapper (one experiment at a time)
-js/gallery.js               gallery, quality summary, zoomable viewer, saving
+js/gallery.js               gallery, quality summary, zoomable viewer, position marking
+js/plot.js                  plot screen (canvas drawing, labels, PNG export)
+js/fit.js                   least-squares parabola fit (pure maths)  <- unit-tested
+js/save.js                  save/share a file on the phone
 js/main.js                  application flow, camera lifecycle, visibility handling
-tests/timing.test.js        unit tests (Node's built-in test runner)
+tests/*.test.js             unit tests (Node's built-in test runner)
 ```
 
 ## Timing architecture (read this before trusting numbers)
@@ -88,7 +105,7 @@ If testing on real iPhones shows the `rvfc` path is not trustworthy enough, this
 
 ## Verified so far (desktop Chromium, synthetic camera)
 
-* Unit tests: `npm test` (17 tests: selection, offsets, irregular cadence, ties, dropped frames, duplicates,
+* Unit tests: `npm test` (23 tests incl. parabola fit; selection, offsets, irregular cadence, ties, dropped frames, duplicates,
   non-monotonic timestamps, tolerance, frame cap, formatting).
 * End-to-end in headless Chromium with a fake camera playing a video in which every frame has its index drawn as
   binary blocks: for both paths, **the image kept for each target showed exactly the frame whose timestamp was
