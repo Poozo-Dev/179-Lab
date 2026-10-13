@@ -1,0 +1,11 @@
+{
+  "name": "physlab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal offline PWA that captures time-stamped frames for school physics experiments.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python3 -m http.server 8080"
+  }
+}
