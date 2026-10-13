@@ -1,5 +1,5 @@
 // main.js — app flow: camera screen -> (Start/Stop) -> gallery -> Record again / Finish.
-import { CONFIG } from './config.js';
+import { CONFIG, APP_VERSION } from './config.js';
 import { RateEstimator, formatSeconds } from './timing.js';
 import { openCamera, stopStream, FrameSource } from './frame-source.js';
 import { Recorder } from './recorder.js';
@@ -217,6 +217,7 @@ async function boot() {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
   renderInterval();
+  const ver = document.getElementById('app-version'); if (ver) ver.textContent = 'App version ' + APP_VERSION;
   try {
     await store.probe();
     const session = await store.getSession();

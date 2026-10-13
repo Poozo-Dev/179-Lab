@@ -1,6 +1,8 @@
 // config.js — the only place a teacher/developer needs to touch to change behaviour.
 import { DEFAULTS } from './timing.js';
 
+export const APP_VERSION = '1.5 (2026-10-14)';   // shown under "Timing tolerance"; bump when deploying
+
 export const CONFIG = {
   ...DEFAULTS,                       // intervalMs, toleranceMs, gapFactor, maxFrames (see timing.js)
   intervalPresetsMs: [100, 200, 300, 500],

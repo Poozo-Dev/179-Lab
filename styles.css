@@ -118,3 +118,13 @@ html.standalone #plot::after, html.standalone .g-foot::after {
 }
 html.standalone #screen-camera::after, html.standalone #viewer::after { background: #000; }
 html.standalone #plot::after, html.standalone .g-foot::after { background: var(--bg); }
+/* The gap shows the page (canvas) background, so also make that match whichever screen is on top:
+   black under the camera and the photo viewer, the normal dark blue elsewhere. Colour only. */
+html.standalone:has(#screen-camera:not([hidden])), html.standalone:has(#viewer:not([hidden])),
+html.standalone:has(#screen-camera:not([hidden])) body, html.standalone:has(#viewer:not([hidden])) body { background: #000; }
+/* While the viewer or plot covers the whole screen, the gallery underneath is invisible anyway; hiding it
+   (visibility only, so its scroll position is kept) stops thumbnails from showing through the gap. */
+html.standalone:has(#viewer:not([hidden])) #screen-gallery,
+html.standalone:has(#plot:not([hidden])) #screen-gallery { visibility: hidden; }
+
+.ver { margin: 6px 0 0; font-size: 12px; opacity: .7; }

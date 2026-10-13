@@ -2,7 +2,8 @@
 // Strategy: pre-cache the app shell on install; afterwards answer from cache immediately and refresh the
 // cache from the network in the background (stale-while-revalidate), so a redeployed update arrives on the
 // next launch without anyone having to bump a version number.
-const CACHE = 'physlab-shell-v2';
+// APP_VERSION in js/config.js is shown in the camera screen's settings, to see which version a phone runs.
+const CACHE = 'physlab-shell-v3';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
   'js/main.js', 'js/config.js', 'js/timing.js', 'js/frame-source.js', 'js/recorder.js', 'js/store.js', 'js/gallery.js', 'js/plot.js', 'js/fit.js', 'js/save.js',
@@ -31,7 +32,9 @@ self.addEventListener('fetch', (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const hit = await cache.match(req, { ignoreSearch: true });
-    const network = fetch(req).then((res) => {
+    // cache:'no-cache' = always ask the server (cheap 304 if unchanged); otherwise the phone's HTTP cache
+    // (GitHub Pages: 10 min) could keep serving an old file and an update would arrive late.
+    const network = fetch(req, { cache: 'no-cache' }).then((res) => {
       if (res && res.ok) cache.put(req, res.clone());
       return res;
     }).catch(() => null);
