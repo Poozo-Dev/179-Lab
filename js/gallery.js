@@ -10,7 +10,7 @@ const el = {
   grid: $('g-grid'), table: $('g-table'), again: $('btn-again'), finish: $('btn-finish'),
   viewer: $('viewer'), stage: $('v-stage'), img: $('v-img'), title: $('v-title'), line: $('v-line'), warn: $('v-warn'),
   close: $('v-close'), save: $('v-save'), prev: $('v-prev'), next: $('v-next'), fit: $('v-fit'),
-  marks: $('v-marks'), hint: $('v-hint'), addpos: $('v-addpos'), rempos: $('v-rempos'), count: $('v-count'),
+  del: $('v-delete'), marks: $('v-marks'), hint: $('v-hint'), addpos: $('v-addpos'), rempos: $('v-rempos'), count: $('v-count'),
   plot: $('btn-plot'),
 };
 
@@ -37,15 +37,25 @@ let tiles = [];     // thumbnail buttons, to show which frames have a marked pos
 
 export function hideGallery() { el.screen.hidden = true; closeViewer(true); }
 
+let handlers = {};
+
 export function showGallery({ session, frames, marks, notice, onAgain, onFinish }) {
-  urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
   const valid = new Set(frames.map((f) => f.index));
   const cleanMarks = {};
   for (const k of Object.keys(marks || {})) if (valid.has(Number(k))) cleanMarks[k] = marks[k];
   state = { session, frames, marks: cleanMarks };
+  handlers = { notice, onAgain, onFinish };
+  renderGallery(false);
+}
+
+// Builds the whole gallery from `state`. Called again after a frame is deleted, so the timing check,
+// counts, table and thumbnails always agree with the frames that are really left.
+function renderGallery(keepScroll) {
+  const { session, frames } = state, { notice, onAgain, onFinish } = handlers;
+  urls.forEach((u) => URL.revokeObjectURL(u)); urls = [];
   tiles = [];
   el.screen.hidden = false;
-  window.scrollTo(0, 0);
+  if (!keepScroll) window.scrollTo(0, 0);
 
   const q = assessQuality(frames, session.stats, { toleranceMs: session.toleranceMs, gapFactor: session.gapFactor });
   const problems = [...q.problems];
@@ -148,7 +158,7 @@ async function show(i) {
   if (i < 0 || i >= frames.length) return;
   V.i = i;
   const f = frames[i], token = ++V.token;
-  el.title.textContent = `Frame ${f.index + 1} of ${frames.length}`;
+  el.title.textContent = `Frame ${f.index + 1} (${i + 1} of ${frames.length})`;
   el.line.textContent = `t = ${formatSeconds(f.actualMs)} s · target ${formatSeconds(f.targetMs)} s · ${formatSigned(f.deviationMs)}`;
   const fl = (state.perFrame && state.perFrame[i]) || [];
   el.warn.textContent = fl.length ? '⚠ ' + fl.map((x) => FLAG_TEXT[x]).join('; ') : '';
@@ -319,4 +329,22 @@ el.addpos.onclick = () => { V.mark = !V.mark; updateTools(); };
 el.rempos.onclick = () => {
   const f = state.frames[V.i]; if (!f) return;
   delete state.marks[f.index]; persistMarks();
+};
+
+// ============================ deleting a frame ============================
+// For trimming a recording that started too early or ended too late. The image and its marked position are
+// removed for good. Frame numbers and time stamps of the remaining frames are NOT changed (they stay the
+// real measured values), and the timing check is re-evaluated for what is left.
+el.del.onclick = async () => {
+  const f = state.frames[V.i]; if (!f) return;
+  if (!confirm(`Delete frame ${f.index + 1} (t = ${formatSeconds(f.actualMs)} s)? The image and its marked position are removed and this cannot be undone.`)) return;
+  try { await store.deleteFrame(f.index); }
+  catch (e) { el.hint.textContent = 'Could not delete: ' + e.message; return; }
+  state.frames.splice(V.i, 1);                                   // the next frame now sits at the same position
+  const hadMark = !!state.marks[f.index];
+  delete state.marks[f.index];
+  if (hadMark) { try { await store.setMarks(state.marks); } catch (_) {} }
+  renderGallery(true);
+  if (!state.frames.length) { closeViewer(); return; }
+  show(Math.min(V.i, state.frames.length - 1));                  // next frame (or the previous one if the last was deleted)
 };

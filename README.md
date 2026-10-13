@@ -23,9 +23,12 @@ use after the first load. Everything (camera, images, timestamps) stays on the p
 ### Marking positions and plotting (new)
 
 1. In the full-size viewer tap **Add position**, then tap the object in the picture. A red dot appears; tap
-   elsewhere to move it, **Move position** / **Remove** change it later. Pinch-zoom first for a precise position
+   elsewhere to move it, **Move position** / **Clear mark** change it later. Pinch-zoom first for a precise position
    (marks are stored in pixels of the saved image, so zoom and pan do not matter). Dots of the other frames are
    shown faded, and thumbnails with a mark get a red dot. Marks are saved on the phone like the images.
+   **Delete frame** (after a confirmation) removes the frame's image and mark permanently and opens the next
+   frame, e.g. to trim a recording that started too early or ended too late. The remaining frames keep their
+   original numbers and measured times; the timing check is re-evaluated for the frames that are left.
 2. In the gallery press **Plot (n)** (between *Record again* and *Finish*). A white canvas shows the red points
    labelled with their timestamps and the least-squares parabola `y = a·x² + b·x + c` with R².
    **Trajectory y(x)** is for projectile motion; **Height y(t)** also works for free fall (where all x are equal).

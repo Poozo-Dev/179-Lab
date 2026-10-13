@@ -60,6 +60,9 @@ export const putFrame = (frameRec, imageRec) => run(['frames', 'images'], 'readw
   tx.objectStore('frames').put(frameRec);
   tx.objectStore('images').put(imageRec);
 });
+export const deleteFrame = (index) => run(['frames', 'images'], 'readwrite', (tx) => {
+  tx.objectStore('frames').delete(index); tx.objectStore('images').delete(index);
+});
 export const clearAll = () => run(['meta', 'frames', 'images'], 'readwrite', (tx) => {
   tx.objectStore('meta').clear(); tx.objectStore('frames').clear(); tx.objectStore('images').clear();
 });

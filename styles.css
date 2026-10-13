@@ -85,7 +85,7 @@ button { font: inherit; color: inherit; }
 #v-hint:empty, #v-warn:empty { display: none; }
 #v-marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 #v-stage.marking { cursor: crosshair; outline: 3px solid var(--bad); outline-offset: -3px; }
-#v-tools { display: flex; gap: 10px; justify-content: center; padding: 8px 10px 0; background: rgba(0,0,0,.7); }
+#v-tools { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 10px 0; background: rgba(0,0,0,.7); }
 #v-tools .vbtn { flex: 0 1 auto; }
 #v-tools .tool { flex: 1; max-width: 220px; border-color: var(--bad); }
 #v-tools .tool.on { background: var(--bad); border-color: var(--bad); color: #fff; }
@@ -100,3 +100,6 @@ button { font: inherit; color: inherit; }
 #p-wrap { flex: 1; min-height: 0; padding: 0 10px; }
 #p-canvas { display: block; width: 100%; height: 100%; background: #fff; border-radius: 10px; }
 #p-info { margin: 0; padding: 10px 14px calc(var(--safe-b) + 14px) 30px; max-height: 32%; overflow: auto; }
+
+.vbtn.danger { border-color: #7a2b2f; color: #ff9a9d; }
+#v-tools .vbtn { min-height: 46px; padding: 0 12px; font-size: 15px; }
