@@ -105,3 +105,16 @@ button { font: inherit; color: inherit; }
 
 .vbtn.danger { border-color: #7a2b2f; color: #ff9a9d; }
 #v-tools .vbtn { min-height: 46px; padding: 0 12px; font-size: 15px; }
+
+/* ---- iPhone home-screen web app: bottom stripe fix (cosmetic only) ----
+   With viewport-fit=cover and a translucent status bar, iOS makes fixed full-screen layers roughly one
+   status-bar height too short (WebKit bug 254868), so a stripe of page background shows at the bottom.
+   Each full-screen layer gets an extension BELOW its bottom edge in its own colour. It changes no layout;
+   where there is no gap (Android, browser tab, a future iOS fix) it simply lies off-screen.
+   `html.standalone` is set in main.js only when the app runs from the home screen. */
+html.standalone #screen-camera::after, html.standalone #viewer::after,
+html.standalone #plot::after, html.standalone .g-foot::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 160px; pointer-events: none;
+}
+html.standalone #screen-camera::after, html.standalone #viewer::after { background: #000; }
+html.standalone #plot::after, html.standalone .g-foot::after { background: var(--bg); }

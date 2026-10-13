@@ -6,6 +6,13 @@ import { Recorder } from './recorder.js';
 import * as store from './store.js';
 import { showGallery, hideGallery } from './gallery.js';
 
+// Home-screen web app? (enables the cosmetic bottom-stripe fix in styles.css; nothing else depends on it)
+try {
+  if (navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) {
+    document.documentElement.classList.add('standalone');
+  }
+} catch (_) {}
+
 const $ = (id) => document.getElementById(id);
 const el = {
   cam: $('screen-camera'), video: $('preview'), state: $('hud-state'), rate: $('hud-rate'), back: $('btn-back'),
