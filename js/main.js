@@ -124,7 +124,7 @@ async function startCamera() {
 el.retry.onclick = startCamera;
 
 // ---------- HUD ----------
-function setHud(text, rec = false) { el.state.textContent = text; el.state.classList.toggle('rec', rec); }
+function setHud(text, rec = false) { el.state.textContent = text; el.state.classList.toggle('is-rec', rec); }
 setInterval(() => {
   if (screen !== 'camera' || !stream) { el.rate.hidden = true; return; }
   const fps = rate.fps;

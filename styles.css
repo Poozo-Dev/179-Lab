@@ -13,10 +13,12 @@ button { font: inherit; color: inherit; }
 /* ---- camera ---- */
 #screen-camera { position: fixed; inset: 0; background: #000; }
 #preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
-.hud { position: absolute; top: calc(var(--safe-t) + 10px); left: 10px; right: 10px; display: flex; gap: 8px; justify-content: space-between; pointer-events: none; }
+.hud { display: flex; gap: 8px; align-items: center; justify-content: space-between; min-height: 40px; }
+.hud .pill { white-space: nowrap; }
+.hud #hud-state { margin-right: auto; }
 .pill { background: rgba(0,0,0,.6); padding: 6px 12px; border-radius: 99px; font-size: 15px; font-variant-numeric: tabular-nums; }
-.pill.back { pointer-events: auto; border: 0; color: var(--text); min-height: 40px; }
-.pill.rec { color: #fff; background: rgba(220,40,50,.9); }
+.pill.back { border: 0; color: var(--text); min-height: 40px; }
+.pill.is-rec { color: #fff; background: rgba(220,40,50,.9); }
 .msg { position: absolute; left: 16px; right: 16px; top: 30%; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; text-align: center; }
 .msg p { margin: 0 0 12px; }
 .controls { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px calc(var(--safe-b) + 14px);
