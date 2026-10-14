@@ -20,16 +20,16 @@
   <!-- ===== Screen 1: camera ===== -->
   <section id="screen-camera" hidden>
     <video id="preview" playsinline muted autoplay></video>
+    <div class="hud">
+      <span id="hud-state" class="pill">Starting camera…</span>
+      <span id="hud-rate" class="pill" hidden></span>
+      <button id="btn-back" class="pill back" hidden>Frames</button>
+    </div>
     <div id="cam-msg" class="msg" role="alert" hidden>
       <p id="cam-msg-text"></p>
       <button id="btn-retry" class="btn">Try again</button>
     </div>
     <div class="controls">
-      <div class="hud">
-        <span id="hud-state" class="pill">Starting camera…</span>
-        <span id="hud-rate" class="pill" hidden></span>
-        <button id="btn-back" class="pill back" hidden>Frames</button>
-      </div>
       <div class="row">
         <span class="lbl">Interval</span>
         <div id="chips" class="chips"></div>
