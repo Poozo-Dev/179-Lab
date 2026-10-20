@@ -529,6 +529,10 @@ function endPointer(e) {
   }
 }
 el.stage.addEventListener('pointerup', endPointer);
+// iPhone: stop the long-press menu, text/image selection and drag-out of the photo (they cancel our drag)
+el.stage.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+el.stage.addEventListener('contextmenu', (e) => e.preventDefault());
+el.stage.addEventListener('dragstart', (e) => e.preventDefault());
 el.stage.addEventListener('pointercancel', endPointer);
 el.stage.addEventListener('wheel', (e) => {
   e.preventDefault();
