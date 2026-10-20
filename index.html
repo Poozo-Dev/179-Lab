@@ -20,6 +20,8 @@
   <!-- ===== Screen 1: camera ===== -->
   <section id="screen-camera" hidden>
     <video id="preview" playsinline muted autoplay></video>
+    <svg id="level" aria-hidden="true" hidden></svg>
+    <div id="countdown" class="countdown" aria-live="assertive" hidden><span id="cd-num"></span></div>
     <div class="hud">
       <span id="hud-state" class="pill">Starting camera…</span>
       <span id="hud-rate" class="pill" hidden></span>
@@ -35,10 +37,23 @@
         <div id="chips" class="chips"></div>
         <label class="custom"><input id="interval-input" type="number" inputmode="decimal" step="0.05" min="0.05" max="5"> s</label>
       </div>
+      <div id="row-zoom" class="row" hidden>
+        <span class="lbl">Zoom</span>
+        <input id="zoom" type="range" aria-label="Camera zoom">
+        <span id="zoom-val" class="zval"></span>
+      </div>
+      <div class="row">
+        <label class="lbl">Countdown <select id="countdown-sel" class="sel"></select></label>
+        <button id="btn-level" class="chip" aria-pressed="false">Level</button>
+      </div>
       <details class="settings">
-        <summary>Timing tolerance</summary>
+        <summary>Settings</summary>
         <label>Warn if a frame is more than
           <select id="tolerance"></select> from its target time</label>
+        <p id="row-exposure" hidden><label>Exposure <select id="exposure"></select></label><br>
+          <span class="small">A short exposure reduces motion blur but darkens the picture; use bright light.</span></p>
+        <p id="exposure-tip" class="small">For moving objects use bright light: the camera then chooses a shorter exposure (less motion blur). A high frame rate alone does not guarantee short exposures.</p>
+        <p class="small">Zoom uses the camera's own zoom. Beyond the lens's optical range it is digital (it crops the picture and adds no detail). Keep zoom and phone position unchanged between calibration and measurement.</p>
         <p id="app-version" class="ver"></p>
       </details>
       <div class="rec-wrap">
@@ -58,15 +73,35 @@
       <summary>Video information</summary>
       <ul id="g-notes" class="notes"></ul>
     </details>
-    <p class="muted tip">Tip: open a frame, tap <b>Add position</b> and tap the object. Mark several frames, then press <b>Plot</b>.</p>
+    <p class="muted tip">Tip: open a frame and tap <b>● A</b> (red) or <b>● B</b> (blue), then touch the object; a magnifier shows the exact spot and the arrows move the point by one image pixel. Mark one colour for a simple t, x, y table; mark both on the same frames for <b>Plot Y(X)</b> and the centre of mass.</p>
     <div id="g-grid" class="grid"></div>
+    <section id="g-measure" class="panel">
+      <h2>Measurements</h2>
+      <p id="m-status" class="muted small"></p>
+      <div class="tablewrap"><table id="m-table"></table></div>
+      <div class="btns"><button id="btn-csv" class="btn" disabled>Export CSV</button></div>
+    </section>
+    <details id="g-coords" class="table">
+      <summary>Scale &amp; vertical (coordinate system)</summary>
+      <p id="c-desc" class="small"></p>
+      <div class="btns">
+        <button id="btn-cal" class="btn">Set scale…</button>
+        <button id="btn-cal-clear" class="btn" hidden>Remove scale</button>
+      </div>
+      <div class="btns">
+        <button id="btn-vert" class="btn">Set vertical…</button>
+        <button id="btn-vert-sensor" class="btn" hidden></button>
+        <button id="btn-vert-clear" class="btn" hidden>Remove vertical</button>
+      </div>
+      <p class="small muted">A two-point scale does not correct perspective or lens distortion: keep the ruler in the plane of the motion and the camera square to it. If the zoom or the phone position changed, set the scale again.</p>
+    </details>
     <details class="table">
       <summary>Timing table (all frames)</summary>
       <pre id="g-table"></pre>
     </details>
     <footer class="g-foot">
       <button id="btn-again" class="btn">Record again</button>
-      <button id="btn-plot" class="btn primary">Plot</button>
+      <button id="btn-plot" class="btn primary" disabled>Plot Y(X)</button>
       <button id="btn-finish" class="btn danger">Finish &amp; clear data</button>
     </footer>
   </section>
@@ -78,12 +113,27 @@
       <div id="v-cap"><b id="v-title"></b><span id="v-line"></span><span id="v-warn"></span><span id="v-hint"></span></div>
       <button id="v-save" class="vbtn" aria-label="Save image">Save</button>
     </div>
-    <div id="v-stage"><img id="v-img" alt="" draggable="false"><svg id="v-marks" aria-hidden="true"></svg></div>
+    <div id="v-stage"><img id="v-img" alt="" draggable="false"><svg id="v-marks" aria-hidden="true"></svg><canvas id="v-loupe" hidden></canvas></div>
+    <div id="v-setup" hidden>
+      <button id="v-which" class="vbtn"></button>
+      <label id="v-dist-wrap">Distance <input id="v-dist" type="number" inputmode="decimal" min="0" step="any">
+        <select id="v-unit"><option>mm</option><option>cm</option><option>m</option></select></label>
+      <button id="v-setup-ok" class="vbtn tool">Save</button>
+      <button id="v-setup-cancel" class="vbtn">Cancel</button>
+    </div>
+    <div id="v-fine" hidden>
+      <button class="vbtn nudge" data-dx="-1" data-dy="0" aria-label="Move left one pixel">←</button>
+      <button class="vbtn nudge" data-dx="0" data-dy="-1" aria-label="Move up one pixel">↑</button>
+      <button class="vbtn nudge" data-dx="0" data-dy="1" aria-label="Move down one pixel">↓</button>
+      <button class="vbtn nudge" data-dx="1" data-dy="0" aria-label="Move right one pixel">→</button>
+      <span id="v-pos" class="small"></span>
+    </div>
     <div id="v-tools">
-      <button id="v-addpos" class="vbtn tool">Add position</button>
-      <button id="v-rempos" class="vbtn" hidden>Clear mark</button>
+      <button id="v-pa" class="vbtn tool a">● A</button>
+      <button id="v-pb" class="vbtn tool b">● B</button>
+      <button id="v-clr" class="vbtn" hidden>Clear</button>
       <button id="v-fit" class="vbtn">Fit</button>
-      <button id="v-delete" class="vbtn danger">Delete frame</button>
+      <button id="v-delete" class="vbtn danger">Delete</button>
     </div>
     <div id="v-bottom">
       <button id="v-prev" class="vbtn big" aria-label="Previous frame">‹</button>
@@ -92,20 +142,31 @@
     </div>
   </div>
 
-  <!-- ===== Plot of the marked positions ===== -->
+  <!-- ===== Plot Y(X): only opened by the student, only for two-point experiments ===== -->
   <div id="plot" hidden>
     <div id="p-top">
       <button id="p-close" class="vbtn" aria-label="Close">✕</button>
-      <b id="p-title">Plot</b>
+      <b id="p-title">Plot Y(X)</b>
       <button id="p-save" class="vbtn" aria-label="Save plot as image">Save</button>
     </div>
-    <div id="p-modes" class="chips">
-      <button class="chip" data-mode="traj">Trajectory y(x)</button>
-      <button class="chip" data-mode="time">Height y(t)</button>
+    <form id="p-mass" class="p-mass" hidden novalidate>
+      <p>Masses at the two points (optional). With both masses the centre of mass is calculated and plotted in green. Only their ratio matters.</p>
+      <label>m<sub>red</sub> <input id="p-ma" type="number" inputmode="decimal" min="0" step="any"> g</label>
+      <label>m<sub>blue</sub> <input id="p-mb" type="number" inputmode="decimal" min="0" step="any"> g</label>
+      <p id="p-mass-err" class="err" role="alert"></p>
+      <div class="btns">
+        <button id="p-skip" type="button" class="btn">Skip — plot red &amp; blue</button>
+        <button type="submit" class="btn primary">Plot with masses</button>
+      </div>
+    </form>
+    <div id="p-chart" hidden>
+      <div class="btns"><button id="p-masses" class="chip">Masses…</button></div>
+      <div id="p-wrap"><canvas id="p-canvas"></canvas></div>
+      <ul id="p-info" class="notes"></ul>
     </div>
-    <div id="p-wrap"><canvas id="p-canvas"></canvas></div>
-    <ul id="p-info" class="notes"></ul>
   </div>
+
+  <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="toast-undo" class="btn">Undo</button></div>
 
   <noscript><p style="padding:2rem;color:#fff">This app needs JavaScript.</p></noscript>
 </body>

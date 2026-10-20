@@ -1,10 +1,12 @@
 // main.js — app flow: camera screen -> (Start/Stop) -> gallery -> Record again / Finish.
 import { CONFIG, APP_VERSION } from './config.js';
 import { RateEstimator, formatSeconds } from './timing.js';
-import { openCamera, stopStream, FrameSource } from './frame-source.js';
+import { openCamera, stopStream, FrameSource, cameraInfo, setZoom, setExposure } from './frame-source.js';
 import { Recorder } from './recorder.js';
 import * as store from './store.js';
 import { showGallery, hideGallery } from './gallery.js';
+import { Countdown, unlockAudio, beep } from './countdown.js';
+import { tiltFromOrientation, AngleSmoother } from './geometry.js';
 
 // Home-screen web app? (enables the cosmetic bottom-stripe fix in styles.css; nothing else depends on it)
 try {
@@ -18,6 +20,9 @@ const el = {
   cam: $('screen-camera'), video: $('preview'), state: $('hud-state'), rate: $('hud-rate'), back: $('btn-back'),
   msg: $('cam-msg'), msgText: $('cam-msg-text'), retry: $('btn-retry'),
   chips: $('chips'), input: $('interval-input'), tol: $('tolerance'), rec: $('btn-record'),
+  cd: $('countdown'), cdNum: $('cd-num'), cdSel: $('countdown-sel'), levelBtn: $('btn-level'), level: $('level'),
+  zoomRow: $('row-zoom'), zoom: $('zoom'), zoomVal: $('zoom-val'), exp: $('exposure'), expRow: $('row-exposure'),
+  expTip: $('exposure-tip'),
 };
 
 // ---------- small persistence of the last-used settings (optional convenience) ----------
@@ -27,19 +32,21 @@ const pref = {
 };
 let intervalMs = pref.get('interval', CONFIG.intervalMs);
 let toleranceMs = pref.get('tolerance', CONFIG.toleranceMs);
+let countdownS = pref.get('countdown', 0);
 if (!(intervalMs >= CONFIG.minIntervalMs && intervalMs <= CONFIG.maxIntervalMs)) intervalMs = CONFIG.intervalMs;
 if (!CONFIG.toleranceOptionsMs.includes(toleranceMs)) toleranceMs = CONFIG.toleranceMs;
+if (!CONFIG.countdownOptionsS.includes(countdownS)) countdownS = 0;
 
 const sourceOverride = new URLSearchParams(location.search).get('source');   // ?source=rvfc|processor (testing)
 
 // ---------- state ----------
 let screen = 'none';           // 'camera' | 'gallery'
-let stream = null, source = null, camToken = 0, wake = null;
+let stream = null, source = null, camToken = 0, wake = null, cam = null;
 let storageOk = true;
 const rate = new RateEstimator();
 const recorder = new Recorder({ onUpdate: onRecUpdate, onStopped: onRecStopped });
 
-// ---------- interval / tolerance controls ----------
+// ---------- interval / tolerance / countdown controls ----------
 function renderInterval() {
   el.chips.innerHTML = '';
   for (const ms of CONFIG.intervalPresetsMs) {
@@ -61,6 +68,11 @@ for (const ms of CONFIG.toleranceOptionsMs) {
   el.tol.append(o);
 }
 el.tol.onchange = () => { toleranceMs = Number(el.tol.value); pref.set('tolerance', toleranceMs); };
+for (const s of CONFIG.countdownOptionsS) {
+  const o = document.createElement('option'); o.value = s; o.textContent = s ? `${s} s` : 'Off'; o.selected = s === countdownS;
+  el.cdSel.append(o);
+}
+el.cdSel.onchange = () => { countdownS = Number(el.cdSel.value); pref.set('countdown', countdownS); };
 
 // ---------- messages ----------
 function showMsg(text, withRetry = true) {
@@ -75,11 +87,13 @@ async function lockScreen() {
 }
 function stopCamera() {
   camToken++;
+  countdown.cancel();
   if (source) { source.stop(); source = null; }
-  stopStream(stream); stream = null;
+  stopStream(stream); stream = null; cam = null;
   el.video.srcObject = null;
   if (wake) { wake.release().catch(() => {}); wake = null; }
   el.rec.disabled = true;
+  renderCameraControls();
 }
 
 async function startCamera() {
@@ -103,6 +117,8 @@ async function startCamera() {
     await src.start();
     if (token !== camToken) { src.stop(); return; }
     source = src;
+    cam = cameraInfo(s);
+    renderCameraControls();
     const track = s.getVideoTracks()[0];
     const lost = () => { if (token === camToken && recorder.recording) recorder.stop('track-ended'); };
     track.addEventListener('ended', () => {
@@ -123,21 +139,128 @@ async function startCamera() {
 }
 el.retry.onclick = startCamera;
 
+// ---------- zoom / exposure (only shown when the camera really supports them) ----------
+function renderCameraControls() {
+  const busy = recorder.recording || countdown.state === 'counting';
+  const z = cam && cam.zoom;
+  el.zoomRow.hidden = !z;
+  if (z) {
+    Object.assign(el.zoom, { min: z.min, max: z.max, step: z.step });
+    if (document.activeElement !== el.zoom) el.zoom.value = z.value;
+    el.zoomVal.textContent = `${Number(el.zoom.value).toFixed(1)}×`;
+    el.zoom.disabled = busy;                     // the picture geometry must not change during a recording
+  }
+  const ex = cam && cam.exposure;
+  el.expRow.hidden = !ex; el.expTip.hidden = !!ex;
+  el.exp.disabled = busy;
+}
+let zoomBusy = false, zoomWanted = null;
+el.zoom.addEventListener('input', async () => {
+  zoomWanted = Number(el.zoom.value);
+  el.zoomVal.textContent = `${zoomWanted.toFixed(1)}×`;
+  if (zoomBusy) return;
+  zoomBusy = true;
+  try {
+    while (zoomWanted !== null) {
+      const v = zoomWanted; zoomWanted = null;
+      const got = await setZoom(stream, v);
+      if (cam && cam.zoom && got !== null) cam.zoom.value = got;
+    }
+  } catch (_) { el.zoomRow.hidden = true; }    // advertised but not working: hide rather than pretend
+  zoomBusy = false;
+});
+el.exp.innerHTML = '<option value="auto">Automatic</option>' +
+  CONFIG.exposureOptionsS.map((s) => `<option value="${s}">1/${Math.round(1 / s)} s</option>`).join('');
+el.exp.onchange = async () => {
+  try { await setExposure(stream, el.exp.value === 'auto' ? null : Number(el.exp.value)); }
+  catch (_) { el.exp.value = 'auto'; el.expRow.hidden = true; el.expTip.hidden = false; }
+};
+
 // ---------- HUD ----------
 function setHud(text, rec = false) { el.state.textContent = text; el.state.classList.toggle('rec', rec); }
 setInterval(() => {
   if (screen !== 'camera' || !stream) { el.rate.hidden = true; return; }
-  const fps = rate.fps;
+  const fps = rate.fps, v = el.video;              // real delivered size and measured rate, not the request
   el.rate.hidden = !(fps > 0);
-  if (fps > 0) el.rate.textContent = `${fps.toFixed(1)} fps`;
+  if (fps > 0) el.rate.textContent = (v.videoWidth ? `${v.videoWidth}×${v.videoHeight} · ` : '') + `${fps.toFixed(1)} fps`;
 }, 500);
 
 function onRecUpdate({ elapsedMs, selected }) {
   setHud(`● REC ${(elapsedMs / 1000).toFixed(1)} s · ${selected} frames`, true);
 }
 
+// ---------- level overlay (phone motion sensors) ----------
+// Shows the picture's vertical axis (dashed) and the physical vertical from the gravity sensor. Purely an
+// aid: recording never depends on it. Sensor data are noisy and become meaningless when the phone is held
+// nearly flat, which is reported instead of a number.
+const level = { on: false, angle: null, at: 0, smooth: new AngleSmoother(0.25), raf: 0, timer: 0 };
+const screenAngle = () => {                       // how far the display is rotated from the phone's portrait
+  const so = window.screen && window.screen.orientation;
+  if (so && Number.isFinite(so.angle)) return so.angle;
+  const w = Number(window.orientation);            // older iOS
+  return Number.isFinite(w) ? (w + 360) % 360 : 0;
+};
+function onOrientation(e) {
+  if (e.beta === null || e.gamma === null) return;
+  level.angle = level.smooth.push(tiltFromOrientation(e.beta, e.gamma, screenAngle()));
+  level.at = performance.now();
+  if (!level.raf) level.raf = requestAnimationFrame(() => { level.raf = 0; drawLevel(); });
+}
+function drawLevel() {
+  if (!level.on) { el.level.hidden = true; return; }
+  el.level.hidden = false;
+  const r = el.level.getBoundingClientRect(), W = r.width, H = r.height;
+  const cx = W / 2, cy = H / 2, L = Math.min(W, H) * 0.38;
+  const fresh = performance.now() - level.at < 1500;
+  let out = `<line x1="${cx}" y1="${cy - L}" x2="${cx}" y2="${cy + L}" stroke="#fff" stroke-width="2" stroke-dasharray="8 6" opacity=".85"/>`;
+  let text;
+  if (!fresh) text = level.at ? 'No sensor data' : 'Waiting for motion sensor…';
+  else if (level.angle === null) text = 'Hold the phone upright to see the vertical';
+  else {
+    const a = level.angle, ok = Math.abs(a) <= CONFIG.levelToleranceDeg, rad = a * Math.PI / 180;
+    const dx = Math.sin(rad) * L, dy = Math.cos(rad) * L, col = ok ? '#35c27a' : '#f2b134';
+    out += `<line x1="${cx - dx}" y1="${cy + dy}" x2="${cx + dx}" y2="${cy - dy}" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
+    out += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
+    text = ok ? `Vertical aligned (${Math.abs(a).toFixed(1)}°)` : `Off vertical by ${Math.abs(a).toFixed(1)}° — rotate the phone`;
+  }
+  out += `<text x="${cx}" y="${Math.min(H - 12, cy + L + 26)}" text-anchor="middle" fill="#fff" font-size="15" font-weight="600" paint-order="stroke" stroke="rgba(0,0,0,.7)" stroke-width="4">${text}</text>`;
+  el.level.innerHTML = out;
+}
+async function setLevel(on) {
+  if (on === level.on) return;
+  if (!on) {
+    level.on = false; window.removeEventListener('deviceorientation', onOrientation);
+    clearInterval(level.timer); el.levelBtn.setAttribute('aria-pressed', 'false'); drawLevel(); return;
+  }
+  if (typeof DeviceOrientationEvent === 'undefined') { showMsg('This phone/browser has no motion sensor access, so the level is not available.', false); return; }
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {      // iOS: must be asked from a tap
+    let r = 'denied';
+    try { r = await DeviceOrientationEvent.requestPermission(); } catch (_) {}
+    if (r !== 'granted') { showMsg('Motion sensor access was not allowed, so the level is not available. (Recording works without it.)', false); return; }
+  }
+  level.on = true; level.angle = null; level.at = 0; level.smooth = new AngleSmoother(0.25);
+  window.addEventListener('deviceorientation', onOrientation);
+  el.levelBtn.setAttribute('aria-pressed', 'true');
+  level.timer = setInterval(drawLevel, 500);               // also reports "no data" when the sensor is silent
+  drawLevel();
+}
+el.levelBtn.onclick = () => setLevel(!level.on);
+const sensorTilt = () => (level.on && level.angle !== null && performance.now() - level.at < 1000 ? level.angle : null);
+
+// ---------- countdown ----------
+let cancelBeeps = [];
+const countdown = new Countdown({
+  onTick: (n) => { el.cd.hidden = false; el.cdNum.textContent = String(n); },
+  onGo: () => { el.cd.hidden = true; cancelBeeps = []; beginRecording(); },
+  onCancel: () => {
+    el.cd.hidden = true; cancelBeeps.forEach((c) => c()); cancelBeeps = [];
+    el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', 'Start'); setHud('Ready'); renderCameraControls();
+  },
+});
+
 // ---------- start / stop ----------
 el.rec.onclick = async () => {
+  if (countdown.state === 'counting') { countdown.cancel(); return; }
   if (recorder.recording) { el.rec.disabled = true; await recorder.stop('user'); return; }   // onRecStopped navigates
   if (!source) return;
   hideMsg();
@@ -145,17 +268,29 @@ el.rec.onclick = async () => {
   if (free !== null && free < 25 * 1024 * 1024) {
     showMsg('There is very little free storage on this phone. Free some space and try again.', false); return;
   }
-  el.rec.disabled = true;
-  try {
-    await recorder.start({ intervalMs, toleranceMs, source });
-  } catch (e) {
-    el.rec.disabled = false; showMsg(e.message || 'Could not start recording.', false); return;
+  if (countdownS > 0) {
+    if (unlockAudio()) {           // beeps on the audio clock: warning 1 s before the end, final at the end
+      if (countdownS >= 2) cancelBeeps.push(beep(countdownS - 1, { freq: 880, dur: 0.12 }));
+      cancelBeeps.push(beep(countdownS, { freq: 1320, dur: 0.35 }));
+    }
+    el.rec.classList.add('on'); el.rec.setAttribute('aria-label', 'Cancel countdown');
+    setHud('Countdown — tap ■ to cancel');
+    countdown.start(countdownS);
+    renderCameraControls();
+    return;
   }
-  store.requestPersistence();
+  beginRecording();
+};
+
+function beginRecording() {
+  if (!source || recorder.recording) return;
+  const ready = recorder.start({ intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt() });
+  ready.then(() => store.requestPersistence(), () => {});   // a storage failure stops the recorder itself
   el.rec.classList.add('on'); el.rec.setAttribute('aria-label', 'Stop'); el.rec.disabled = false;
   el.back.hidden = true;
   setHud('● REC 0.0 s · 0 frames', true);
-};
+  renderCameraControls();
+}
 
 async function onRecStopped(session, err) {
   el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', 'Start');
@@ -165,18 +300,19 @@ async function onRecStopped(session, err) {
 
 // ---------- screens ----------
 async function goGallery(notice) {
-  let session, frames, marks = {};
+  let session, frames, marks = {}, setup = {};
   try {
     session = await store.getSession();
     frames = session ? await store.listFrames() : [];
-    if (session) marks = await store.getMarks();
-  } catch (e) { storageOk = false; showCameraScreen(); showMsg(e.message, false); return; }
-  if (!session) { showCameraScreen(); return; }
+    if (session) { marks = await store.getMarks(); setup = await store.getSetup(); }
+  } catch (e) { storageOk = false; await showCameraScreen(); showMsg(e.message, false); return; }
+  if (!session) { await showCameraScreen(); if (notice) showMsg(notice, false); return; }
   frames.sort((a, b) => a.index - b.index);
   screen = 'gallery';
+  setLevel(false);
   el.cam.hidden = true;
   showGallery({
-    session, frames, marks, notice,
+    session, frames, marks, setup, notice,
     onAgain: () => {
       if (confirm('Starting a new recording deletes the frames shown here. Continue?')) showCameraScreen();
     },
@@ -202,6 +338,7 @@ el.back.onclick = () => { stopCamera(); goGallery(); };
 // ---------- page visibility (screen lock, app switch) ----------
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
+    countdown.cancel();
     if (recorder.recording) recorder.stop('hidden');       // timing is not trustworthy across a suspension
     else if (screen === 'camera') stopCamera();
   } else if (screen === 'camera' && !stream) {
@@ -210,6 +347,7 @@ document.addEventListener('visibilitychange', () => {
     lockScreen();
   }
 });
+window.addEventListener('resize', () => { if (level.on) drawLevel(); });
 
 // ---------- boot ----------
 async function boot() {

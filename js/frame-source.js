@@ -45,9 +45,15 @@ export async function openCamera() {
     throw new CameraError('unsupported', 'This browser cannot use the camera. Use Safari on iPhone or Chrome on Android.');
   }
   const v = CONFIG.video;
-  const attempts = [   // from most to least specific; rear camera preferred but never required
-    { facingMode: { ideal: 'environment' }, width: { ideal: v.width }, height: { ideal: v.height }, frameRate: { ideal: v.frameRate } },
-    { facingMode: { ideal: 'environment' } },
+  // From most to least demanding; rear camera preferred but never required. The high-fps attempt uses
+  // `min` so a phone that cannot do it at this size refuses (and we fall back) instead of silently
+  // lowering the resolution to reach the frame rate.
+  const env = { facingMode: { ideal: 'environment' } };
+  const size = { width: { ideal: v.width }, height: { ideal: v.height } };
+  const attempts = [
+    ...v.frameRates.map((fps, i) => ({ ...env, ...size,
+      frameRate: i < v.frameRates.length - 1 ? { ideal: fps, min: fps * 0.8 } : { ideal: fps } })),
+    env,
     true,
   ];
   let last;
@@ -60,6 +66,49 @@ export async function openCamera() {
 
 export function stopStream(stream) {
   if (stream) for (const t of stream.getTracks()) t.stop();
+}
+
+/** What the camera really delivers, and which optional controls it supports (detected, never assumed). */
+export function cameraInfo(stream) {
+  const track = stream && stream.getVideoTracks()[0];
+  if (!track) return null;
+  let s = {}, c = {};
+  try { s = track.getSettings ? track.getSettings() : {}; } catch (_) {}
+  try { c = track.getCapabilities ? track.getCapabilities() : {}; } catch (_) {}
+  const range = (r) => (r && Number.isFinite(r.min) && Number.isFinite(r.max) && r.max > r.min ? r : null);
+  const zoom = range(c.zoom);
+  const expTime = range(c.exposureTime);
+  return {
+    width: s.width || null, height: s.height || null, frameRate: s.frameRate || null,
+    zoom: zoom ? { min: zoom.min, max: zoom.max, step: zoom.step || 0.1, value: s.zoom ?? zoom.min } : null,
+    // exposureTime is in units of 100 µs (W3C Image Capture spec)
+    exposure: expTime && Array.isArray(c.exposureMode) && c.exposureMode.includes('manual')
+      ? { min: expTime.min, max: expTime.max, modes: c.exposureMode } : null,
+    label: track.label || '',
+  };
+}
+
+/** Apply camera zoom (native constraint only). Returns the zoom actually in effect, or null. */
+export async function setZoom(stream, value) {
+  const track = stream && stream.getVideoTracks()[0];
+  if (!track) return null;
+  await track.applyConstraints({ advanced: [{ zoom: value }] });
+  try { return track.getSettings().zoom ?? null; } catch (_) { return null; }
+}
+
+/** seconds = null -> automatic exposure; otherwise a fixed short exposure time (clamped to what the camera allows). */
+export async function setExposure(stream, seconds) {
+  const track = stream && stream.getVideoTracks()[0];
+  const info = cameraInfo(stream);
+  if (!track || !info || !info.exposure) return null;
+  if (seconds === null) {
+    const mode = info.exposure.modes.includes('continuous') ? 'continuous' : null;
+    if (mode) await track.applyConstraints({ advanced: [{ exposureMode: mode }] });
+    return null;
+  }
+  const units = Math.min(info.exposure.max, Math.max(info.exposure.min, seconds * 1e4));
+  await track.applyConstraints({ advanced: [{ exposureMode: 'manual', exposureTime: units }] });
+  return units / 1e4;
 }
 
 export class FrameSource {

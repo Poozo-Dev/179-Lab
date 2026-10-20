@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FrameSelector, RateEstimator, assessQuality, formatFrameLine, median } from '../js/timing.js';
+import { FrameSelector, RateEstimator, assessQuality, formatFrameLine, median, intervalStats, alignmentNote } from '../js/timing.js';
 
 // helper: feed timestamps, collect selections
 function run(tsList, opts = {}) {
@@ -133,4 +133,30 @@ test('RateEstimator and median', () => {
   assert.equal(Math.round(r.fps), 50);
   assert.equal(median([3, 1, 2]), 2);
   assert.equal(median([1, 2, 3, 4]), 2.5);
+});
+
+test('interval stats: dropped camera frames and jitter are counted', () => {
+  const iv = [33.3, 33.4, 33.3, 66.7, 33.3, 100, 33.3, 33.4];       // one gap of 2 periods, one of 3
+  const s = intervalStats(iv);
+  assert.equal(s.droppedFrames, 3);
+  assert.equal(s.unstableShare, 0);
+  assert.ok(intervalStats([33, 45, 20, 33, 33]).unstableShare > 0.3);
+});
+
+test('alignment note only when the interval is not a whole number of frame periods', () => {
+  assert.equal(alignmentNote(200, 1000 / 30), null);                // 6 frames
+  assert.equal(alignmentNote(100, 1000 / 60), null);                // 6 frames
+  const n = alignmentNote(250, 1000 / 30);                          // 7.5 frames
+  assert.match(n, /7\.50 camera frames/);
+  assert.match(n, /0\.233 s or 0\.267 s/);
+});
+
+test('irregular frames with a dropped stretch: gap flagged, note about dropped frames', () => {
+  const ts = [0, 33, 67, 100, 133, 167, 300, 333, 367, 400];          // frames 200..267 missing
+  const sel = new FrameSelector({ intervalMs: 100, maxFrames: 10 });
+  const out = ts.flatMap((t) => sel.push({ tsMs: t }));
+  const q = assessQuality(out, sel.stats(), { toleranceMs: 25, intervalMs: 100 });
+  assert.ok(q.perFrame.some((f) => f.includes('gap')));
+  assert.ok(q.notes.some((n) => /dropped/.test(n)));
+  assert.ok(out.every((s, i) => i === 0 || s.actualMs > out[i - 1].actualMs || s.duplicate));
 });

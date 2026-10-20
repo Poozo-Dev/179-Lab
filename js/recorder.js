@@ -25,21 +25,29 @@ export class Recorder {
     this.stopPromise = null;
   }
 
-  async start({ intervalMs, toleranceMs, source }) {
-    if (this.recording) return;
-    await store.clearAll();
+  /**
+   * Recording starts IMMEDIATELY (the next camera frame is t = 0), so a countdown can end exactly here.
+   * Clearing the old experiment and writing the new session run in the background; every image save is
+   * chained after them. Resolves when that storage preparation is done (rejects if it failed).
+   * `camera` = cameraInfo() at start, `sensorTiltDeg` = level reading at start (or null).
+   */
+  start({ intervalMs, toleranceMs, source, camera = null, sensorTiltDeg = null }) {
+    if (this.recording) return Promise.resolve();
     this.selector = new FrameSelector({ intervalMs, maxFrames: CONFIG.maxFrames });
     this.bufs = null; this.width = this.height = null;
-    this.chain = Promise.resolve(); this.pending = 0; this.saved = 0; this.failure = null;
+    this.pending = 0; this.saved = 0; this.failure = null;
     this.source = source; this.stopPromise = null;
     this.session = {
       id: Date.now(), createdAt: new Date().toISOString(), status: 'recording', stopReason: null,
       intervalMs, toleranceMs, gapFactor: CONFIG.gapFactor,
-      sourceMode: source.mode, timeSource: source.timeSource,
+      sourceMode: source.mode, timeSource: source.timeSource, camera, sensorTiltDeg,
       width: null, height: null, stats: null, frameCount: 0, userAgent: navigator.userAgent,
     };
-    await store.setSession(this.session);
     this.recording = true;
+    const session = this.session;
+    const ready = (async () => { await store.clearAll(); await store.setSession(session); })();
+    this.chain = ready.catch((e) => this._fail(e));
+    return ready;
   }
 
   /** Called for EVERY camera frame (also while idle, then it returns immediately). */
@@ -50,7 +58,7 @@ export class Recorder {
       this.bufs = [makeCanvas(this.width, this.height), makeCanvas(this.width, this.height)];
       this.session.width = this.width; this.session.height = this.height;
       this.session.sourceMode = this.source.mode; this.session.timeSource = this.source.timeSource;
-      store.setSession(this.session).catch((e) => this._fail(e));
+      this.chain = this.chain.then(() => store.setSession(this.session)).catch((e) => this._fail(e));
     } else if (info.width !== this.width || info.height !== this.height) {
       this.stop('orientation'); return;
     }

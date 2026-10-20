@@ -82,15 +82,20 @@ button { font: inherit; color: inherit; }
 
 /* ---- marking tool ---- */
 .tip { font-size: 14px; margin: 0 0 12px; }
-.tile.marked::after { content: ""; position: absolute; top: 8px; right: 8px; width: 12px; height: 12px; border-radius: 50%; background: #ff3b30; border: 2px solid #fff; }
+.tile.ma::after, .tile.mb::before { content: ""; position: absolute; top: 8px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; }
+.tile.ma::after { right: 8px; background: #ff2d2d; }
+.tile.mb::before { right: 26px; background: #2f7bff; }
 #v-hint { font-size: 13px; color: var(--accent); }
 #v-hint:empty, #v-warn:empty { display: none; }
 #v-marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-#v-stage.marking { cursor: crosshair; outline: 3px solid var(--bad); outline-offset: -3px; }
+#v-stage.marking { cursor: crosshair; outline: 3px solid var(--accent); outline-offset: -3px; }
 #v-tools { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 10px 0; background: rgba(0,0,0,.7); }
 #v-tools .vbtn { flex: 0 1 auto; }
-#v-tools .tool { flex: 1; max-width: 220px; border-color: var(--bad); }
-#v-tools .tool.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+#v-tools .tool { flex: 1; max-width: 160px; }
+#v-tools .tool.a { border-color: #ff2d2d; color: #ff8a8a; }
+#v-tools .tool.b { border-color: #2f7bff; color: #8fb6ff; }
+#v-tools .tool.a.on { background: #ff2d2d; color: #fff; }
+#v-tools .tool.b.on { background: #2f7bff; color: #fff; }
 #v-bottom .big { min-width: 84px; }
 #v-count { flex: 1; text-align: center; font-size: 14px; }
 
@@ -98,7 +103,6 @@ button { font: inherit; color: inherit; }
 #plot { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; flex-direction: column; }
 #p-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(var(--safe-t) + 8px) 10px 8px; }
 #p-title { font-size: 17px; }
-#p-modes { justify-content: center; padding: 0 10px 8px; }
 #p-wrap { flex: 1; min-height: 0; padding: 0 10px; }
 #p-canvas { display: block; width: 100%; height: 100%; background: #fff; border-radius: 10px; }
 #p-info { margin: 0; padding: 10px 14px calc(var(--safe-b) + 14px) 30px; max-height: 32%; overflow: auto; }
@@ -128,3 +132,47 @@ html.standalone:has(#viewer:not([hidden])) #screen-gallery,
 html.standalone:has(#plot:not([hidden])) #screen-gallery { visibility: hidden; }
 
 .ver { margin: 6px 0 0; font-size: 12px; opacity: .7; }
+
+/* ---- v1.7: camera extras ---- */
+#level { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.countdown { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.countdown span { font-size: 120px; font-weight: 800; color: #fff; text-shadow: 0 0 18px rgba(0,0,0,.8); font-variant-numeric: tabular-nums; }
+#row-zoom input { flex: 1; max-width: 260px; accent-color: var(--accent); }
+.zval { min-width: 44px; font-variant-numeric: tabular-nums; }
+.sel { font: inherit; min-height: 40px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; }
+.small { font-size: 13px; }
+.settings p { margin: 8px 0 0; }
+
+/* ---- v1.7: measurements ---- */
+.panel { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--panel); }
+.panel h2 { font-size: 17px; margin: 0 0 4px; }
+.panel p { margin: 0 0 10px; }
+.tablewrap { overflow-x: auto; }
+#m-table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#m-table th, #m-table td { padding: 4px 10px 4px 0; text-align: right; border-bottom: 1px solid var(--line); }
+#m-table th { color: var(--muted); font-weight: 600; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.btn:disabled { opacity: .4; }
+#g-coords p { margin: 4px 0 8px; }
+
+/* ---- v1.7: precise marking ---- */
+#v-loupe { position: absolute; z-index: 3; border: 3px solid #fff; border-radius: 50%; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.6); }
+#v-fine, #v-setup { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 8px 10px 0; background: rgba(0,0,0,.7); }
+#v-fine .nudge { min-width: 52px; font-size: 20px; }
+#v-pos { color: #cfd8e3; min-width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
+#v-setup input { width: 90px; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: #1a212b; color: var(--text); padding: 0 8px; font: inherit; }
+#v-setup select { min-height: 44px; font: inherit; background: #1a212b; color: var(--text); border: 1px solid var(--line); border-radius: 10px; }
+#v-setup .tool { border-color: var(--accent); }
+
+/* ---- v1.7: plot / masses / toast ---- */
+.p-mass { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 10px; max-width: 520px; margin: 0 auto; }
+.p-mass p { margin: 0; color: var(--muted); }
+.p-mass label { display: flex; align-items: center; gap: 8px; }
+.p-mass input { width: 120px; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 0 8px; font: inherit; }
+.err { color: var(--bad); }
+.err:empty { display: none; }
+#p-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+#p-chart > .btns { justify-content: center; margin: 0 0 8px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 84px); z-index: 30; display: flex; align-items: center; gap: 12px;
+  background: #222b36; border: 1px solid var(--line); border-radius: 12px; padding: 8px 8px 8px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.5); max-width: calc(100% - 24px); }
+.toast .btn { min-height: 40px; }

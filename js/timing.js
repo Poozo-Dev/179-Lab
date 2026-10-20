@@ -97,15 +97,48 @@ export class FrameSelector {
   }
 
   stats() {
-    const med = median(this.frameIntervals);
-    return {
-      framesSeen: this.framesSeen,
-      medianIntervalMs: med,
-      estimatedFps: med > 0 ? 1000 / med : NaN,
-      maxIntervalMs: this.frameIntervals.length ? Math.max(...this.frameIntervals) : NaN,
-      nonMonotonic: this.nonMonotonic,
-    };
+    return { framesSeen: this.framesSeen, ...intervalStats(this.frameIntervals), nonMonotonic: this.nonMonotonic };
   }
+}
+
+/**
+ * Camera frame-interval statistics. `droppedFrames` estimates how many camera frames are missing: an
+ * interval of about n median periods (n >= 2) means n-1 frames were not delivered. `unstable` is the share
+ * of intervals more than 25 % away from the median (jitter that is not a whole dropped frame).
+ */
+export function intervalStats(iv) {
+  const med = median(iv);
+  let dropped = 0, off = 0;
+  if (med > 0) {
+    for (const d of iv) {
+      const n = Math.round(d / med);
+      if (n >= 2 && d > 1.5 * med) dropped += n - 1;
+      else if (Math.abs(d - med) > 0.25 * med) off++;
+    }
+  }
+  return {
+    medianIntervalMs: med,
+    estimatedFps: med > 0 ? 1000 / med : NaN,
+    maxIntervalMs: iv.length ? Math.max(...iv) : NaN,
+    droppedFrames: dropped,
+    unstableShare: iv.length ? off / iv.length : 0,
+  };
+}
+
+/**
+ * How well the sampling interval fits the camera's frame period. Frames only exist every `periodMs`, so a
+ * target time can be missed by up to half a period; if the interval is a whole number of periods the
+ * error stays (nearly) constant instead of alternating. Returns null when the fit is good.
+ */
+export function alignmentNote(intervalMs, periodMs) {
+  if (!(periodMs > 0) || !(intervalMs > 0)) return null;
+  const n = intervalMs / periodMs, frac = Math.abs(n - Math.round(n));
+  if (frac < 0.1) return null;
+  const lo = Math.max(1, Math.floor(n)) * periodMs, hi = Math.ceil(n) * periodMs;
+  const s = (ms) => (ms / 1000).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  return `The interval (${s(intervalMs)} s) is ${n.toFixed(2)} camera frames long, not a whole number, so the ` +
+    `kept frames alternate between earlier and later than their target (up to ±${(periodMs / 2).toFixed(1)} ms). ` +
+    `Intervals that fit this camera: ${s(lo)} s or ${s(hi)} s.`;
 }
 
 /** Running camera-rate estimate for the live preview (no selection involved). */
@@ -166,6 +199,16 @@ export function assessQuality(selections, stats, opts = {}) {
     if (med > 2 * tol) {
       problems.push('The camera is too slow (low frame rate, often in dim light) for the chosen tolerance. ' +
         'Use better lighting or a larger interval.');
+    }
+    const align = alignmentNote(opts.intervalMs, med);
+    if (align) notes.push(align);
+    if (stats.droppedFrames > 0) {
+      notes.push(`About ${stats.droppedFrames} camera frame(s) were dropped during the recording ` +
+        '(kept images next to a gap are marked).');
+    }
+    if (stats.unstableShare > 0.1) {
+      notes.push(`The camera frame rate was unstable (${Math.round(stats.unstableShare * 100)} % of frame intervals ` +
+        'differ by more than 25 % from the typical one). Better lighting usually helps.');
     }
   }
   return { ok: problems.length === 0, perFrame, problems, notes, worstDeviationMs: worst, badCount: bad };

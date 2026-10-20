@@ -2,6 +2,7 @@
 //   meta   : key 'session'  -> session object (settings, status, stats)
 //   frames : {index, targetMs, actualMs, deviationMs, gapMs, duplicate, suspect, width, height, thumb:ArrayBuffer}
 //   images : {index, data:ArrayBuffer}   (full-size JPEG; kept apart so listing the gallery loads thumbnails only)
+//   meta   : key 'marks' -> measured points, key 'setup' -> masses / calibration / vertical
 // Images are stored as ArrayBuffer rather than Blob: older Safari versions had bugs with Blobs in IndexedDB.
 
 const DB_NAME = 'physlab', DB_VERSION = 1;
@@ -51,7 +52,11 @@ async function run(stores, mode, fn) {
 
 export const getSession = () => run('meta', 'readonly', (tx) => tx.objectStore('meta').get('session'));
 export const setSession = (s) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put(s, 'session'); });
-// Manually placed object positions: { [frameIndex]: {x, y} } in pixels of the saved image. Kept in 'meta'.
+// Measurement setup of the experiment: { masses: {a, b}, cal: {...}, vert: {...} } (see measure.js). Kept in 'meta'.
+export const getSetup = () => run('meta', 'readonly', (tx) => tx.objectStore('meta').get('setup')).then((s) => s || {});
+export const setSetup = (s) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put(s, 'setup'); });
+// Manually placed points: { [frameIndex]: {a?: {x, y}, b?: {x, y}} } in pixels of the saved image (older
+// versions stored a single {x, y}; measure.normalizeMarks reads both). Kept in 'meta'.
 export const getMarks = () => run('meta', 'readonly', (tx) => tx.objectStore('meta').get('marks')).then((m) => m || {});
 export const setMarks = (m) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put(m, 'marks'); });
 export const listFrames = () => run('frames', 'readonly', (tx) => tx.objectStore('frames').getAll());
