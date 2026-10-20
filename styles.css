@@ -96,6 +96,8 @@ button { font: inherit; color: inherit; }
 #v-tools .tool.b { border-color: #2f7bff; color: #8fb6ff; }
 #v-tools .tool.a.on { background: #ff2d2d; color: #fff; }
 #v-tools .tool.b.on { background: #2f7bff; color: #fff; }
+#v-tools .tool.pulse { animation: pulse .9s ease-out 1; }
+@keyframes pulse { 0%, 60% { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(74,163,255,.7); } 100% { transform: none; box-shadow: none; } }
 #v-bottom .big { min-width: 84px; }
 #v-count { flex: 1; text-align: center; font-size: 14px; }
 

@@ -379,7 +379,8 @@ function updateTools() {
   const what = { a: 'Point A (red)', b: 'Point B (blue)' }[V.target];
   el.hint.textContent = V.target === 'cal' ? 'Touch two marks on the ruler (point 1, then point 2), enter their distance, Save.'
     : V.target === 'vert' ? 'Touch two points on something truly vertical (plumb line, door frame), then Save.'
-    : what ? `Touch and slide to place ${what}; the magnifier shows the exact spot. Two fingers zoom/move.` : '';
+    : what ? `Tap to mark ${what}, or slide to fine-tune with the magnifier. Two fingers zoom/move.`
+    : 'To mark a point: tap ● A (red) or ● B (blue) below, then tap the object.';
   const n = analyzeMarks(state.frames, state.marks);
   el.count.textContent = `A: ${n.nA} · B: ${n.nB} of ${state.frames.length}`;
 }
@@ -514,6 +515,7 @@ function endPointer(e) {
   }
   if (e.type === 'pointercancel' || V.pointers.size > 0 || V.target) return;
   const dx = e.clientX - p.sx, dy = e.clientY - p.sy, dt = performance.now() - p.st;
+  if (Math.hypot(dx, dy) < 10 && dt < 300) pulseTools();       // a tap with no point selected: show where to start
   if (V.scale <= 1.01 && dt < 700 && Math.abs(dx) > 50 && Math.abs(dx) > 1.6 * Math.abs(dy)) {
     go(dx < 0 ? 1 : -1); return;                                // swipe
   }
@@ -563,6 +565,10 @@ el.save.onclick = async () => {
   await saveBlob(V.blob, name);
 };
 
+// briefly highlight the A/B buttons (a tap on the photo does nothing until one of them is selected)
+function pulseTools() {
+  for (const b of [el.pa, el.pb]) { b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }
+}
 el.pa.onclick = () => { V.target = V.target === 'a' ? null : 'a'; updateTools(); renderMarks(); };
 el.pb.onclick = () => { V.target = V.target === 'b' ? null : 'b'; updateTools(); renderMarks(); };
 el.clr.onclick = () => { if (V.target === 'a' || V.target === 'b') { setPoint(null); commitPoint(); } };
