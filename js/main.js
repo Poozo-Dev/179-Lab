@@ -263,13 +263,14 @@ el.rec.onclick = async () => {
   if (countdown.state === 'counting') { countdown.cancel(); return; }
   if (recorder.recording) { el.rec.disabled = true; await recorder.stop('user'); return; }   // onRecStopped navigates
   if (!source) return;
+  const audio = unlockAudio();     // must happen BEFORE any await, or iOS does not count it as a tap
   hideMsg();
   const free = await store.freeBytes();
   if (free !== null && free < 25 * 1024 * 1024) {
     showMsg('There is very little free storage on this phone. Free some space and try again.', false); return;
   }
   if (countdownS > 0) {
-    if (unlockAudio()) {           // beeps on the audio clock: warning 1 s before the end, final at the end
+    if (audio) {                   // beeps on the audio clock: warning 1 s before the end, final at the end
       if (countdownS >= 2) cancelBeeps.push(beep(countdownS - 1, { freq: 880, dur: 0.12 }));
       cancelBeeps.push(beep(countdownS, { freq: 1320, dur: 0.35 }));
     }
@@ -279,6 +280,7 @@ el.rec.onclick = async () => {
     renderCameraControls();
     return;
   }
+  if (audio) beep(0, { freq: 1320, dur: 0.25 });     // recording starts now
   beginRecording();
 };
 

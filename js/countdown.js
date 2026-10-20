@@ -47,13 +47,18 @@ export function unlockAudio() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    // iPhone: 'playback' lets the beeps play like media instead of as quiet "ambient" sound (Safari 16.4+)
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) {}
     if (!actx) actx = new AC();
-    if (actx.state === 'suspended') actx.resume().catch(() => {});
+    if (actx.state !== 'running') actx.resume().catch(() => {});
+    // iPhone: audio is only unlocked by sound started synchronously inside the tap -> play 1 silent sample
+    const b = actx.createBuffer(1, 1, 22050), src = actx.createBufferSource();
+    src.buffer = b; src.connect(actx.destination); src.start(0);
     return actx;
   } catch (_) { return null; }
 }
 /** Schedule a beep `delayS` seconds from now on the audio clock. Returns a cancel function. */
-export function beep(delayS, { freq = 880, dur = 0.12, gain = 0.4 } = {}) {
+export function beep(delayS, { freq = 880, dur = 0.12, gain = 0.8 } = {}) {
   const ctx = actx; if (!ctx) return () => {};
   try {
     const t = ctx.currentTime + Math.max(0, delayS);
