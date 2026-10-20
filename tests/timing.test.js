@@ -117,8 +117,8 @@ test('only one previous frame is retained (constant memory)', () => {
 test('slow camera is reported against tolerance', () => {
   const { out, sel } = run(regular(40, 100), { intervalMs: 200 });   // 10 fps
   const q = assessQuality(out, sel.stats(), { toleranceMs: 25 });
-  assert.equal(q.ok, false);
-  assert.ok(q.problems.join(' ').includes('too slow'));
+  assert.equal(q.ok, true);                                          // frames hit their targets: no failure
+  assert.ok(q.notes.join(' ').includes('camera is slow'));
 });
 
 test('formatFrameLine matches the specified layout', () => {

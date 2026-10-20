@@ -196,9 +196,9 @@ export function assessQuality(selections, stats, opts = {}) {
       notes.push(`With this frame rate a timing error of up to ±${quant.toFixed(1)} ms is unavoidable; ` +
         `the tolerance (±${tol} ms) is stricter than the camera can guarantee.`);
     }
-    if (med > 2 * tol) {
-      problems.push('The camera is too slow (low frame rate, often in dim light) for the chosen tolerance. ' +
-        'Use better lighting or a larger interval.');
+    if (med > 2 * tol) {            // only a hint: a frame really off target is flagged above
+      notes.push('The camera is slow (low frame rate, often in dim light) compared with the allowed timing error, ' +
+        'so frames may miss their target. Better lighting or a larger interval helps.');
     }
     const align = alignmentNote(opts.intervalMs, med);
     if (align) notes.push(align);

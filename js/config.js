@@ -1,14 +1,14 @@
 // config.js — the only place a teacher/developer needs to touch to change behaviour.
 import { DEFAULTS } from './timing.js';
 
-export const APP_VERSION = '1.7.5 (2026-10-20)';   // shown under "Settings"; bump when deploying
+export const APP_VERSION = '1.7.6 (2026-10-20)';   // shown under "Settings"; bump when deploying
 
 export const CONFIG = {
   ...DEFAULTS,                       // intervalMs, toleranceMs, gapFactor, maxFrames (see timing.js)
   intervalPresetsMs: [100, 200, 300],
   minIntervalMs: 50,
   maxIntervalMs: 5000,
-  toleranceOptionsMs: [10, 15, 25, 40, 60],
+  toleranceFraction: 0.1,            // a frame is flagged when it is more than 10 % of the interval off its target time
   // Requested camera mode, tried in this order (see frame-source.js). The phone may still choose differently;
   // the mode it really delivers is read back and shown (resolution, measured fps).
   video: { width: 1920, height: 1080, frameRates: [60, 30] },

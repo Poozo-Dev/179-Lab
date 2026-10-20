@@ -87,7 +87,7 @@ function renderGallery(keepScroll) {
   el.quality.innerHTML = '';
   const b = document.createElement('b');
   b.textContent = ok
-    ? `Timing check passed: all frames within ±${session.toleranceMs} ms of their target time (worst ${Math.round(q.worstDeviationMs)} ms).`
+    ? `Timing check passed: all frames within ±${Math.round(session.toleranceMs * 10) / 10} ms (10 % of the interval) of their target time (worst ${Math.round(q.worstDeviationMs)} ms).`
     : 'Timing check failed — repeat the experiment';
   el.quality.append(b);
   if (!ok) {

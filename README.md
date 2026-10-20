@@ -87,7 +87,7 @@ milliseconds and say nothing about when the camera actually produced a frame.
    compute time, so dropped frames and variable frame rates show up as real deviations.
 4. For every kept frame the app stores: frame number, target time, actual time, deviation, and the gap
    between the two camera frames around the target.
-5. A frame is **flagged** when: |deviation| > tolerance (default ±25 ms, selectable on the camera screen),
+5. A frame is **flagged** when: |deviation| > 10 % of the interval (e.g. ±20 ms at 0.2 s; fixed, `toleranceFraction` in config.js),
    or camera frames were dropped around it (gap > 1.5 × median frame interval), or the same camera frame had to be
    used twice, or the source reports that pixel↔timestamp pairing is doubtful. Any flag fails the timing check.
 

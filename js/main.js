@@ -19,7 +19,7 @@ const $ = (id) => document.getElementById(id);
 const el = {
   cam: $('screen-camera'), video: $('preview'), state: $('hud-state'), rate: $('hud-rate'), back: $('btn-back'),
   msg: $('cam-msg'), msgText: $('cam-msg-text'), retry: $('btn-retry'),
-  chips: $('chips'), input: $('interval-input'), tol: $('tolerance'), rec: $('btn-record'),
+  chips: $('chips'), input: $('interval-input'), rec: $('btn-record'),
   cd: $('countdown'), cdNum: $('cd-num'), cdSel: $('countdown-sel'), levelBtn: $('btn-level'), level: $('level'),
   zoomRow: $('row-zoom'), zoom: $('zoom'), zoomVal: $('zoom-val'), exp: $('exposure'), expRow: $('row-exposure'),
   expTip: $('exposure-tip'),
@@ -31,10 +31,8 @@ const pref = {
   set(k, v) { try { localStorage.setItem('physlab.' + k, String(v)); } catch (_) {} },
 };
 let intervalMs = pref.get('interval', CONFIG.intervalMs);
-let toleranceMs = pref.get('tolerance', CONFIG.toleranceMs);
 let countdownS = pref.get('countdown', 0);
 if (!(intervalMs >= CONFIG.minIntervalMs && intervalMs <= CONFIG.maxIntervalMs)) intervalMs = CONFIG.intervalMs;
-if (!CONFIG.toleranceOptionsMs.includes(toleranceMs)) toleranceMs = CONFIG.toleranceMs;
 if (!CONFIG.countdownOptionsS.includes(countdownS)) countdownS = 0;
 
 const sourceOverride = new URLSearchParams(location.search).get('source');   // ?source=rvfc|processor (testing)
@@ -46,7 +44,7 @@ let storageOk = true;
 const rate = new RateEstimator();
 const recorder = new Recorder({ onUpdate: onRecUpdate, onStopped: onRecStopped });
 
-// ---------- interval / tolerance / countdown controls ----------
+// ---------- interval / countdown controls ----------
 function renderInterval() {
   el.chips.innerHTML = '';
   for (const ms of CONFIG.intervalPresetsMs) {
@@ -63,11 +61,6 @@ el.input.addEventListener('change', () => {
   if (ms >= CONFIG.minIntervalMs && ms <= CONFIG.maxIntervalMs) { intervalMs = ms; pref.set('interval', ms); }
   renderInterval();
 });
-for (const ms of CONFIG.toleranceOptionsMs) {
-  const o = document.createElement('option'); o.value = ms; o.textContent = `±${ms} ms`; o.selected = ms === toleranceMs;
-  el.tol.append(o);
-}
-el.tol.onchange = () => { toleranceMs = Number(el.tol.value); pref.set('tolerance', toleranceMs); };
 for (const s of CONFIG.countdownOptionsS) {
   const o = document.createElement('option'); o.value = s; o.textContent = s ? `${s} s` : 'Off'; o.selected = s === countdownS;
   el.cdSel.append(o);
@@ -213,17 +206,12 @@ function drawLevel() {
   const cx = W / 2, cy = H / 2, L = Math.min(W, H) * 0.38;
   const fresh = performance.now() - level.at < 1500;
   let out = `<line x1="${cx}" y1="${cy - L}" x2="${cx}" y2="${cy + L}" stroke="#fff" stroke-width="2" stroke-dasharray="8 6" opacity=".85"/>`;
-  let text;
-  if (!fresh) text = level.at ? 'No sensor data' : 'Waiting for motion sensor…';
-  else if (level.angle === null) text = 'Hold the phone upright to see the vertical';
-  else {
+  if (fresh && level.angle !== null) {
     const a = level.angle, ok = Math.abs(a) <= CONFIG.levelToleranceDeg, rad = a * Math.PI / 180;
     const dx = Math.sin(rad) * L, dy = Math.cos(rad) * L, col = ok ? '#35c27a' : '#f2b134';
     out += `<line x1="${cx - dx}" y1="${cy + dy}" x2="${cx + dx}" y2="${cy - dy}" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
     out += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
-    text = ok ? `Vertical aligned (${Math.abs(a).toFixed(1)}°)` : `Off vertical by ${Math.abs(a).toFixed(1)}° — rotate the phone`;
   }
-  out += `<text x="${cx}" y="${Math.min(H - 12, cy + L + 26)}" text-anchor="middle" fill="#fff" font-size="15" font-weight="600" paint-order="stroke" stroke="rgba(0,0,0,.7)" stroke-width="4">${text}</text>`;
   el.level.innerHTML = out;
 }
 async function setLevel(on) {
@@ -286,6 +274,7 @@ el.rec.onclick = async () => {
 
 function beginRecording() {
   if (!source || recorder.recording) return;
+  const toleranceMs = intervalMs * CONFIG.toleranceFraction;    // fixed rule: flag frames > 10 % of the interval off
   const ready = recorder.start({ intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt() });
   ready.then(() => store.requestPersistence(), () => {});   // a storage failure stops the recorder itself
   el.rec.classList.add('on'); el.rec.setAttribute('aria-label', 'Stop'); el.rec.disabled = false;
