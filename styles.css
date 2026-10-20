@@ -163,7 +163,7 @@ html.standalone:has(#plot:not([hidden])) #screen-gallery { visibility: hidden; }
 #v-loupe { position: absolute; z-index: 3; border: 3px solid #fff; border-radius: 50%; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,.6); }
 #v-fine, #v-setup { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; padding: 8px 10px 0; background: rgba(0,0,0,.7); }
 #v-fine .nudge { min-width: 52px; font-size: 20px; }
-#v-pos { color: #cfd8e3; min-width: 140px; text-align: center; font-variant-numeric: tabular-nums; }
+#v-pos { color: #cfd8e3; flex-basis: 100%; min-height: 1.4em; text-align: center; font-variant-numeric: tabular-nums; }
 #v-setup input { width: 90px; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: #1a212b; color: var(--text); padding: 0 8px; font: inherit; }
 #v-setup select { min-height: 44px; font: inherit; background: #1a212b; color: var(--text); border: 1px solid var(--line); border-radius: 10px; }
 #v-setup .tool { border-color: var(--accent); }

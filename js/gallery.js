@@ -369,9 +369,12 @@ function updateTools() {
   el.stage.classList.toggle('marking', !!V.target);
   el.stage.dataset.target = V.target || '';
   const p = V.target ? getPoint() : null;
-  el.clr.hidden = !(V.target === 'a' || V.target === 'b') || !p;
-  el.fine.hidden = !p;
-  el.pos.textContent = p ? `x ${p.x.toFixed(1)}, y ${p.y.toFixed(1)} px` : '';
+  // shown for the whole marking session (disabled until a point exists), so placing the first point does not
+  // change the layout and resize the picture under the finger
+  el.clr.hidden = !(V.target === 'a' || V.target === 'b'); el.clr.disabled = !p;
+  el.fine.hidden = !V.target;
+  for (const b of el.fine.querySelectorAll('.nudge')) b.disabled = !p;
+  el.pos.textContent = p ? `x ${p.x.toFixed(1)}, y ${p.y.toFixed(1)} px` : 'no point yet';   // never empty: keeps the row height
   if (setup) {
     el.distWrap.hidden = V.target !== 'cal';
     el.which.textContent = `Editing point ${V.sub === 'p1' ? '1' : '2'} ⇄`;
@@ -540,6 +543,8 @@ el.stage.addEventListener('wheel', (e) => {
   zoomAt(V.scale * Math.exp(-e.deltaY * 0.0015), ax, ay);
 }, { passive: false });
 window.addEventListener('resize', () => { if (V.open) applyView(); });
+// any change of the photo area (toolbars, hint text, rotation) must re-place the marks over the picture
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => { if (V.open) applyView(); }).observe(el.stage);
 
 function nudge(dx, dy) {
   const p = getPoint(); if (!p || !V.url) return;
