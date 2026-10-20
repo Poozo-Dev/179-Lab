@@ -207,8 +207,8 @@ function onOrientation(e) {
   if (!level.raf) level.raf = requestAnimationFrame(() => { level.raf = 0; drawLevel(); });
 }
 function drawLevel() {
-  if (!level.on) { el.level.hidden = true; return; }
-  el.level.hidden = false;
+  if (!level.on) { el.level.toggleAttribute('hidden', true); return; }
+  el.level.toggleAttribute('hidden', false);   // SVG has no .hidden property
   const r = el.level.getBoundingClientRect(), W = r.width, H = r.height;
   const cx = W / 2, cy = H / 2, L = Math.min(W, H) * 0.38;
   const fresh = performance.now() - level.at < 1500;
