@@ -1,7 +1,7 @@
 // config.js — the only place a teacher/developer needs to touch to change behaviour.
 import { DEFAULTS } from './timing.js';
 
-export const APP_VERSION = '1.8.0 (2026-10-21)';   // shown under "Settings"; bump when deploying
+export const APP_VERSION = '1.8.1 (2026-10-21)';   // shown under "Settings"; bump when deploying
 
 export const CONFIG = {
   ...DEFAULTS,                       // intervalMs, toleranceMs, gapFactor, maxFrames (see timing.js)
@@ -14,6 +14,7 @@ export const CONFIG = {
   video: { width: 1920, height: 1080, frameRates: [60, 30] },
   jpegQuality: 0.95,                 // saved images (full camera resolution, never downscaled)
   countdownOptionsS: [0, 3, 5, 10],  // 0 = start immediately
+  durationOptionsS: [0, 1, 2, 3, 5, 10],   // automatic stop after this recording time; 0 = stop by hand
   // Short exposure choices offered when the camera supports manual exposure (seconds)
   exposureOptionsS: [1 / 250, 1 / 500, 1 / 1000],
   levelToleranceDeg: 1,              // level overlay turns green within this angle

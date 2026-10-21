@@ -20,9 +20,10 @@ use after the first load. Everything (camera, images, timestamps) stays on the p
 5. **Stopping ≠ finishing.** Frames stay on the phone (also after reloads/restarts) until you press
    **Finish & clear data**. **Record again** also deletes the current frames (after a confirmation).
 
-Optional on the camera screen: **Countdown** (3/5/10 s: a short beep 1 s before the end, a long beep when
+Optional on the camera screen: **Stop after** (1–10 s: recording stops by itself once the frame for that time is
+captured, measured on the camera clock; a beep marks the end), **Countdown** (3/5/10 s: a short beep 1 s before the end, a long beep when
 recording starts; tap the button again to cancel), **Level** (shows the picture's vertical axis and the physical
-vertical from the phone's motion sensor), **Zoom** (only if the camera offers it) and, under *Settings*, a short
+vertical from the phone's motion sensor), **Zoom** (only if the camera offers it; Chrome needs `zoom: true` in the camera request to report it) and, under *Settings*, a short
 **Exposure** (only if the camera allows manual exposure). The top pill shows the delivered resolution and the measured fps.
 
 ### Measuring points (v1.7)

@@ -21,7 +21,7 @@ const el = {
   cam: $('screen-camera'), video: $('preview'), state: $('hud-state'), rate: $('hud-rate'), back: $('btn-back'),
   msg: $('cam-msg'), msgText: $('cam-msg-text'), retry: $('btn-retry'),
   chips: $('chips'), input: $('interval-input'), rec: $('btn-record'),
-  cd: $('countdown'), cdNum: $('cd-num'), cdSel: $('countdown-sel'), levelBtn: $('btn-level'), level: $('level'),
+  cd: $('countdown'), cdNum: $('cd-num'), cdSel: $('countdown-sel'), durSel: $('duration-sel'), levelBtn: $('btn-level'), level: $('level'),
   zoomRow: $('row-zoom'), zoom: $('zoom'), zoomVal: $('zoom-val'), exp: $('exposure'), expRow: $('row-exposure'),
   expTip: $('exposure-tip'),
 };
@@ -35,6 +35,8 @@ let intervalMs = pref.get('interval', CONFIG.intervalMs);
 let countdownS = pref.get('countdown', 0);
 if (!(intervalMs >= CONFIG.minIntervalMs && intervalMs <= CONFIG.maxIntervalMs)) intervalMs = CONFIG.intervalMs;
 if (!CONFIG.countdownOptionsS.includes(countdownS)) countdownS = 0;
+let durationS = pref.get('duration', 0);
+if (!CONFIG.durationOptionsS.includes(durationS)) durationS = 0;
 
 const sourceOverride = new URLSearchParams(location.search).get('source');   // ?source=rvfc|processor (testing)
 
@@ -70,6 +72,14 @@ function renderCountdownOptions() {
   }
 }
 el.cdSel.onchange = () => { countdownS = Number(el.cdSel.value); pref.set('countdown', countdownS); };
+function renderDurationOptions() {
+  el.durSel.innerHTML = '';
+  for (const s of CONFIG.durationOptionsS) {
+    const o = document.createElement('option'); o.value = s; o.textContent = s ? `${s} ${t('u.s')}` : t('cam.manual'); o.selected = s === durationS;
+    el.durSel.append(o);
+  }
+}
+el.durSel.onchange = () => { durationS = Number(el.durSel.value); pref.set('duration', durationS); };
 
 // ---------- messages ----------
 function showMsg(text, withRetry = true) {
@@ -286,7 +296,7 @@ el.rec.onclick = async () => {
 function beginRecording() {
   if (!source || recorder.recording) return;
   const toleranceMs = intervalMs * CONFIG.toleranceFraction;    // fixed rule: flag frames > 10 % of the interval off
-  const ready = recorder.start({ intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt() });
+  const ready = recorder.start({ intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt(), durationMs: durationS * 1000 });
   ready.then(() => store.requestPersistence(), () => {});   // a storage failure stops the recorder itself
   el.rec.classList.add('on'); el.rec.setAttribute('aria-label', t('cam.stop')); el.rec.disabled = false;
   el.back.hidden = true;
@@ -296,6 +306,7 @@ function beginRecording() {
 
 async function onRecStopped(session, err) {
   el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', t('cam.start'));
+  if (session && session.stopReason === 'duration') beep(0, { freq: 660, dur: 0.3 });   // timer finished
   stopCamera();                       // release the camera as soon as recording ends
   await goGallery(err ? err.message : null);
 }
@@ -354,7 +365,7 @@ window.addEventListener('resize', () => { if (level.on) drawLevel(); });
 // ---------- language ----------
 function renderTexts() {
   applyStatic();
-  renderInterval(); renderCountdownOptions(); renderExposureOptions();
+  renderInterval(); renderCountdownOptions(); renderDurationOptions(); renderExposureOptions();
   el.state.textContent = t(hud.key, hud.p);
   el.rec.setAttribute('aria-label', t(countdown.state === 'counting' ? 'cam.cancelCd' : recorder.recording ? 'cam.stop' : 'cam.start'));
   const ver = document.getElementById('app-version'); if (ver) ver.textContent = t('cam.version') + ' ' + APP_VERSION;

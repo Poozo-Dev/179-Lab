@@ -49,12 +49,14 @@ export async function openCamera() {
   // From most to least demanding; rear camera preferred but never required. The high-fps attempt uses
   // `min` so a phone that cannot do it at this size refuses (and we fall back) instead of silently
   // lowering the resolution to reach the frame rate.
-  const env = { facingMode: { ideal: 'environment' } };
+  // zoom: true -> Chrome (Android) only reports the zoom range in getCapabilities() when it was requested here
+  const env = { facingMode: { ideal: 'environment' }, zoom: true };
   const size = { width: { ideal: v.width }, height: { ideal: v.height } };
   const attempts = [
     ...v.frameRates.map((fps, i) => ({ ...env, ...size,
       frameRate: i < v.frameRates.length - 1 ? { ideal: fps, min: fps * 0.8 } : { ideal: fps } })),
     env,
+    { facingMode: { ideal: 'environment' } },
     true,
   ];
   let last;

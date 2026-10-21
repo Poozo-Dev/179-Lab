@@ -27,7 +27,7 @@ const el = {
 
 const flagText = (x) => t('flag.' + x);
 // why the recording stopped (null = normal stop, nothing to report)
-const stopText = (reason) => (reason && reason !== 'user' && reason !== 'max' ? t('stop.' + reason) : null);
+const stopText = (reason) => (reason && !['user', 'max', 'duration'].includes(reason) ? t('stop.' + reason) : null);
 const U = (unit) => t('u.' + unit);
 const TS_KEY = {                     // stored English names of the timestamp source -> translated text
   'VideoFrame.timestamp (camera capture clock)': 'ts.processor',

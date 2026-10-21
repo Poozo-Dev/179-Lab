@@ -190,3 +190,22 @@ html.standalone:has(#plot:not([hidden])) #screen-gallery { visibility: hidden; }
 .modal-box p { margin: 0 0 6px; line-height: 1.5; }
 .modal-box .btns { justify-content: center; }
 .modal-box .btn { flex: 1; }
+
+/* ---- compact camera controls (smaller phones, Android browser bars) ---- */
+.controls { gap: 6px; padding: 8px 10px calc(var(--safe-b) + 10px); font-size: 14px; }
+.controls .row { gap: 6px; }
+.controls .chip { min-width: 46px; min-height: 36px; border-radius: 18px; padding: 0 10px; }
+.controls .custom input { width: 62px; min-height: 36px; }
+.controls .sel { min-height: 34px; font-size: 14px; }
+.controls .settings { font-size: 13px; }
+.controls .settings summary { padding: 2px; }
+.rec { width: 64px; height: 64px; }
+.rec::after { inset: 5px; }
+.rec.on::after { inset: 17px; }
+.pill { font-size: 14px; padding: 5px 10px; }
+.pill.back { min-height: 36px; }
+@media (max-height: 700px) {
+  .controls .chip, .controls .custom input { min-height: 32px; }
+  .rec { width: 56px; height: 56px; }
+  .rec.on::after { inset: 15px; }
+}

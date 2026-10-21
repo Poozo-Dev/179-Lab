@@ -31,15 +31,15 @@ export class Recorder {
    * chained after them. Resolves when that storage preparation is done (rejects if it failed).
    * `camera` = cameraInfo() at start, `sensorTiltDeg` = level reading at start (or null).
    */
-  start({ intervalMs, toleranceMs, source, camera = null, sensorTiltDeg = null }) {
+  start({ intervalMs, toleranceMs, source, camera = null, sensorTiltDeg = null, durationMs = 0 }) {
     if (this.recording) return Promise.resolve();
     this.selector = new FrameSelector({ intervalMs, maxFrames: CONFIG.maxFrames });
     this.bufs = null; this.width = this.height = null;
     this.pending = 0; this.saved = 0; this.failure = null;
-    this.source = source; this.stopPromise = null;
+    this.source = source; this.stopPromise = null; this.durationMs = durationMs;
     this.session = {
       id: Date.now(), createdAt: new Date().toISOString(), status: 'recording', stopReason: null,
-      intervalMs, toleranceMs, gapFactor: CONFIG.gapFactor,
+      intervalMs, toleranceMs, gapFactor: CONFIG.gapFactor, durationMs,
       sourceMode: source.mode, timeSource: source.timeSource, camera, sensorTiltDeg,
       width: null, height: null, stats: null, frameCount: 0, userAgent: navigator.userAgent,
     };
@@ -69,6 +69,8 @@ export class Recorder {
     const picked = this.selector.push({ tsMs: info.tsMs, suspect: info.suspect, buf });
     for (const sel of picked) this._capture(sel);
     if (this.selector.done) { this.stop('max'); return; }
+    // timer: stop once every target up to the set duration has its frame (measured camera time, not a JS timer)
+    if (this.durationMs > 0 && this.selector.nextIndex * this.selector.intervalMs > this.durationMs + 1e-6) { this.stop('duration'); return; }
     this.onUpdate({ elapsedMs: this.selector.prevR, selected: this.selector.nextIndex, saved: this.saved });
   }
 
@@ -110,7 +112,7 @@ export class Recorder {
     this.recording = false;
     this.stopPromise = (async () => {
       try { await this.chain; } catch (_) {}
-      const clean = reason === 'user' || reason === 'max';
+      const clean = reason === 'user' || reason === 'max' || reason === 'duration';
       const s = this.session;
       s.status = clean && !this.failure ? 'stopped' : 'interrupted';
       s.stopReason = this.failure ? 'storage' : reason;
