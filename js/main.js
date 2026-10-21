@@ -7,6 +7,7 @@ import * as store from './store.js';
 import { showGallery, hideGallery } from './gallery.js';
 import { Countdown, unlockAudio, beep } from './countdown.js';
 import { tiltFromOrientation, AngleSmoother } from './geometry.js';
+import { t, applyStatic, hasChosen, setLang, onLangChange } from './i18n.js';
 
 // Home-screen web app? (enables the cosmetic bottom-stripe fix in styles.css; nothing else depends on it)
 try {
@@ -49,7 +50,7 @@ function renderInterval() {
   el.chips.innerHTML = '';
   for (const ms of CONFIG.intervalPresetsMs) {
     const b = document.createElement('button');
-    b.className = 'chip'; b.textContent = formatSeconds(ms).replace(/0+$/, '').replace(/\.$/, '.0') + ' s';
+    b.className = 'chip'; b.textContent = formatSeconds(ms).replace(/0+$/, '').replace(/\.$/, '.0') + ' ' + t('u.s');
     b.setAttribute('aria-pressed', String(ms === intervalMs));
     b.onclick = () => { intervalMs = ms; pref.set('interval', ms); renderInterval(); };
     el.chips.append(b);
@@ -61,9 +62,12 @@ el.input.addEventListener('change', () => {
   if (ms >= CONFIG.minIntervalMs && ms <= CONFIG.maxIntervalMs) { intervalMs = ms; pref.set('interval', ms); }
   renderInterval();
 });
-for (const s of CONFIG.countdownOptionsS) {
-  const o = document.createElement('option'); o.value = s; o.textContent = s ? `${s} s` : 'Off'; o.selected = s === countdownS;
-  el.cdSel.append(o);
+function renderCountdownOptions() {
+  el.cdSel.innerHTML = '';
+  for (const s of CONFIG.countdownOptionsS) {
+    const o = document.createElement('option'); o.value = s; o.textContent = s ? `${s} ${t('u.s')}` : t('cam.off'); o.selected = s === countdownS;
+    el.cdSel.append(o);
+  }
 }
 el.cdSel.onchange = () => { countdownS = Number(el.cdSel.value); pref.set('countdown', countdownS); };
 
@@ -92,7 +96,7 @@ function stopCamera() {
 async function startCamera() {
   stopCamera();
   const token = camToken;
-  hideMsg(); setHud('Starting camera…'); el.rec.disabled = true;
+  hideMsg(); setHud('cam.starting'); el.rec.disabled = true;
   let s = null;
   try {
     s = await openCamera();
@@ -117,17 +121,19 @@ async function startCamera() {
     track.addEventListener('ended', () => {
       if (token !== camToken) return;
       if (recorder.recording) recorder.stop('track-ended');
-      else if (screen === 'camera') { stopCamera(); showMsg('The camera stopped (it may have been taken by another app).'); setHud('Camera stopped'); }
+      else if (screen === 'camera') { stopCamera(); showMsg(t('cam.stoppedMsg')); setHud('cam.stopped'); }
     });
     track.addEventListener('mute', lost);
     lockScreen();
     el.rec.disabled = !storageOk;
-    setHud('Ready');
+    setHud('cam.ready');
+    askLanguage();
   } catch (e) {
     if (token !== camToken) { stopStream(s); return; }
     stopCamera();
-    setHud('Camera unavailable');
-    showMsg(e && e.code ? e.message : 'The camera could not be started. Tap "Try again".');
+    setHud('cam.unavailable');
+    showMsg(e && e.code ? e.message : t('err.unknown'));
+    askLanguage();
   }
 }
 el.retry.onclick = startCamera;
@@ -162,24 +168,29 @@ el.zoom.addEventListener('input', async () => {
   } catch (_) { el.zoomRow.hidden = true; }    // advertised but not working: hide rather than pretend
   zoomBusy = false;
 });
-el.exp.innerHTML = '<option value="auto">Automatic</option>' +
-  CONFIG.exposureOptionsS.map((s) => `<option value="${s}">1/${Math.round(1 / s)} s</option>`).join('');
+function renderExposureOptions() {
+  const v = el.exp.value || 'auto';
+  el.exp.innerHTML = `<option value="auto">${t('cam.expAuto')}</option>` +
+    CONFIG.exposureOptionsS.map((s) => `<option value="${s}">1/${Math.round(1 / s)} ${t('u.s')}</option>`).join('');
+  el.exp.value = v;
+}
 el.exp.onchange = async () => {
   try { await setExposure(stream, el.exp.value === 'auto' ? null : Number(el.exp.value)); }
   catch (_) { el.exp.value = 'auto'; el.expRow.hidden = true; el.expTip.hidden = false; }
 };
 
 // ---------- HUD ----------
-function setHud(text, rec = false) { el.state.textContent = text; el.state.classList.toggle('rec', rec); }
+let hud = { key: 'cam.starting', p: {}, rec: false };   // remembered so a language change can redraw it
+function setHud(key, p = {}, rec = false) { hud = { key, p, rec }; el.state.textContent = t(key, p); el.state.classList.toggle('rec', rec); }
 setInterval(() => {
   if (screen !== 'camera' || !stream) { el.rate.hidden = true; return; }
   const fps = rate.fps, v = el.video;              // real delivered size and measured rate, not the request
   el.rate.hidden = !(fps > 0);
-  if (fps > 0) el.rate.textContent = (v.videoWidth ? `${v.videoWidth}×${v.videoHeight} · ` : '') + `${fps.toFixed(1)} fps`;
+  if (fps > 0) el.rate.textContent = (v.videoWidth ? `${v.videoWidth}×${v.videoHeight} · ` : '') + `${fps.toFixed(1)} ${t('u.fps')}`;
 }, 500);
 
 function onRecUpdate({ elapsedMs, selected }) {
-  setHud(`● REC ${(elapsedMs / 1000).toFixed(1)} s · ${selected} frames`, true);
+  setHud('cam.rec', { s: (elapsedMs / 1000).toFixed(1), n: selected }, true);
 }
 
 // ---------- level overlay (phone motion sensors) ----------
@@ -220,11 +231,11 @@ async function setLevel(on) {
     level.on = false; window.removeEventListener('deviceorientation', onOrientation);
     clearInterval(level.timer); el.levelBtn.setAttribute('aria-pressed', 'false'); drawLevel(); return;
   }
-  if (typeof DeviceOrientationEvent === 'undefined') { showMsg('This phone/browser has no motion sensor access, so the level is not available.', false); return; }
+  if (typeof DeviceOrientationEvent === 'undefined') { showMsg(t('cam.noSensor'), false); return; }
   if (typeof DeviceOrientationEvent.requestPermission === 'function') {      // iOS: must be asked from a tap
     let r = 'denied';
     try { r = await DeviceOrientationEvent.requestPermission(); } catch (_) {}
-    if (r !== 'granted') { showMsg('Motion sensor access was not allowed, so the level is not available. (Recording works without it.)', false); return; }
+    if (r !== 'granted') { showMsg(t('cam.sensorDenied'), false); return; }
   }
   level.on = true; level.angle = null; level.at = 0; level.smooth = new AngleSmoother(0.25);
   window.addEventListener('deviceorientation', onOrientation);
@@ -242,7 +253,7 @@ const countdown = new Countdown({
   onGo: () => { el.cd.hidden = true; cancelBeeps = []; beginRecording(); },
   onCancel: () => {
     el.cd.hidden = true; cancelBeeps.forEach((c) => c()); cancelBeeps = [];
-    el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', 'Start'); setHud('Ready'); renderCameraControls();
+    el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', t('cam.start')); setHud('cam.ready'); renderCameraControls();
   },
 });
 
@@ -255,15 +266,15 @@ el.rec.onclick = async () => {
   hideMsg();
   const free = await store.freeBytes();
   if (free !== null && free < 25 * 1024 * 1024) {
-    showMsg('There is very little free storage on this phone. Free some space and try again.', false); return;
+    showMsg(t('cam.lowStorage'), false); return;
   }
   if (countdownS > 0) {
     if (audio) {                   // beeps on the audio clock: warning 1 s before the end, final at the end
       if (countdownS >= 2) cancelBeeps.push(beep(countdownS - 1, { freq: 880, dur: 0.12 }));
       cancelBeeps.push(beep(countdownS, { freq: 1320, dur: 0.35 }));
     }
-    el.rec.classList.add('on'); el.rec.setAttribute('aria-label', 'Cancel countdown');
-    setHud('Countdown — tap ■ to cancel');
+    el.rec.classList.add('on'); el.rec.setAttribute('aria-label', t('cam.cancelCd'));
+    setHud('cam.countdown');
     countdown.start(countdownS);
     renderCameraControls();
     return;
@@ -277,14 +288,14 @@ function beginRecording() {
   const toleranceMs = intervalMs * CONFIG.toleranceFraction;    // fixed rule: flag frames > 10 % of the interval off
   const ready = recorder.start({ intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt() });
   ready.then(() => store.requestPersistence(), () => {});   // a storage failure stops the recorder itself
-  el.rec.classList.add('on'); el.rec.setAttribute('aria-label', 'Stop'); el.rec.disabled = false;
+  el.rec.classList.add('on'); el.rec.setAttribute('aria-label', t('cam.stop')); el.rec.disabled = false;
   el.back.hidden = true;
-  setHud('● REC 0.0 s · 0 frames', true);
+  setHud('cam.rec', { s: '0.0', n: 0 }, true);
   renderCameraControls();
 }
 
 async function onRecStopped(session, err) {
-  el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', 'Start');
+  el.rec.classList.remove('on'); el.rec.setAttribute('aria-label', t('cam.start'));
   stopCamera();                       // release the camera as soon as recording ends
   await goGallery(err ? err.message : null);
 }
@@ -305,10 +316,10 @@ async function goGallery(notice) {
   showGallery({
     session, frames, marks, setup, notice,
     onAgain: () => {
-      if (confirm('Starting a new recording deletes the frames shown here. Continue?')) showCameraScreen();
+      if (confirm(t('cam.confirmAgain'))) showCameraScreen();
     },
     onFinish: async () => {
-      if (!confirm('Delete all frames of this experiment? This cannot be undone.')) return;
+      if (!confirm(t('cam.confirmFinish'))) return;
       try { await store.clearAll(); } catch (e) { alert(e.message); return; }
       showCameraScreen();
     },
@@ -340,13 +351,26 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('resize', () => { if (level.on) drawLevel(); });
 
+// ---------- language ----------
+function renderTexts() {
+  applyStatic();
+  renderInterval(); renderCountdownOptions(); renderExposureOptions();
+  el.state.textContent = t(hud.key, hud.p);
+  el.rec.setAttribute('aria-label', t(countdown.state === 'counting' ? 'cam.cancelCd' : recorder.recording ? 'cam.stop' : 'cam.start'));
+  const ver = document.getElementById('app-version'); if (ver) ver.textContent = t('cam.version') + ' ' + APP_VERSION;
+}
+onLangChange(renderTexts);
+// First launch: ask once, after the camera permission question (so the two prompts do not overlap).
+const langModal = document.getElementById('lang-modal');
+function askLanguage() { if (!hasChosen()) langModal.hidden = false; }
+for (const b of langModal.querySelectorAll('[data-lang]')) b.onclick = () => { langModal.hidden = true; setLang(b.dataset.lang); };
+
 // ---------- boot ----------
 async function boot() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
-  renderInterval();
-  const ver = document.getElementById('app-version'); if (ver) ver.textContent = 'App version ' + APP_VERSION;
+  renderTexts();
   try {
     await store.probe();
     const session = await store.getSession();

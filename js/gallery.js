@@ -5,8 +5,9 @@ import * as store from './store.js';
 import { saveBlob } from './save.js';
 import { openPlot } from './plot.js';
 import { POINTS, CM_CSS, normalizeMarks, analyzeMarks, validMasses, centerOfMass, coordSystem,
-  buildTable, columnLabel, cellValue, toCsv } from './measure.js';
+  buildTable, cellValue, toCsv } from './measure.js';
 import { screenToImage, imageToScreen, fitScale } from './geometry.js';
+import { t, getLang, setLang, onLangChange } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const el = {
@@ -24,21 +25,14 @@ const el = {
   toast: $('toast'), toastText: $('toast-text'), toastUndo: $('toast-undo'),
 };
 
-const FLAG_TEXT = {
-  deviation: 'timing off target',
-  gap: 'camera frames were dropped nearby',
-  duplicate: 'same camera frame as the previous image',
-  suspect: 'late callback: pixels may belong to a neighbouring frame',
-};
-const STOP_TEXT = {
-  max: null,
-  user: null,
-  hidden: 'Recording was interrupted because the app went to the background or the screen turned off.',
-  'track-ended': 'The camera stopped during recording (disconnected, or taken by another app).',
-  orientation: 'The phone was rotated during recording, which changes the image size.',
-  storage: 'The phone ran out of storage space or could not save images.',
-  overload: 'The phone could not keep up with saving the images (too slow). Try a longer interval.',
-  reload: 'The page was closed or reloaded during recording.',
+const flagText = (x) => t('flag.' + x);
+// why the recording stopped (null = normal stop, nothing to report)
+const stopText = (reason) => (reason && reason !== 'user' && reason !== 'max' ? t('stop.' + reason) : null);
+const U = (unit) => t('u.' + unit);
+const TS_KEY = {                     // stored English names of the timestamp source -> translated text
+  'VideoFrame.timestamp (camera capture clock)': 'ts.processor',
+  'requestVideoFrameCallback captureTime': 'ts.capture',
+  'requestVideoFrameCallback presentationTime (compatibility mode)': 'ts.presentation',
 };
 
 let urls = [];      // object URLs of thumbnails (revoked when the gallery is rebuilt)
@@ -73,22 +67,22 @@ function renderGallery(keepScroll) {
 
   const q = assessQuality(frames, session.stats, { toleranceMs: session.toleranceMs, gapFactor: session.gapFactor, intervalMs: session.intervalMs });
   const problems = [...q.problems];
-  const stopText = STOP_TEXT[session.stopReason];
-  if (stopText) problems.unshift(stopText);
+  const stopMsg = stopText(session.stopReason);
+  if (stopMsg) problems.unshift(stopMsg);
   if (notice) problems.unshift(notice);
-  if (!frames.length) problems.unshift('No frames were captured.');
+  if (!frames.length) problems.unshift(t('g.noFrames'));
   const ok = problems.length === 0;
 
-  const when = new Date(session.createdAt).toLocaleString();
-  el.sub.textContent = `${when} · every ${formatSeconds(session.intervalMs)} s · ${frames.length} frames` +
+  const when = new Date(session.createdAt).toLocaleString(getLang() === 'ru' ? 'ru-RU' : 'en-GB');
+  el.sub.textContent = t('g.sub', { when, iv: formatSeconds(session.intervalMs), n: frames.length }) +
     (session.width ? ` · ${session.width}×${session.height}` : '');
 
   el.quality.className = 'banner ' + (ok ? 'ok' : 'bad');
   el.quality.innerHTML = '';
   const b = document.createElement('b');
   b.textContent = ok
-    ? `Timing check passed: all frames within ±${Math.round(session.toleranceMs * 10) / 10} ms (10 % of the interval) of their target time (worst ${Math.round(q.worstDeviationMs)} ms).`
-    : 'Timing check failed — repeat the experiment';
+    ? t('g.passed', { tol: Math.round(session.toleranceMs * 10) / 10, worst: Math.round(q.worstDeviationMs) })
+    : t('g.failed');
   el.quality.append(b);
   if (!ok) {
     const ul = document.createElement('ul');
@@ -100,15 +94,14 @@ function renderGallery(keepScroll) {
   const notes = [...q.notes];
   const cam = session.camera;
   if (cam && cam.width) {
-    notes.push(`Camera mode reported by the browser: ${cam.width}×${cam.height}` +
-      (cam.frameRate ? ` at ${Math.round(cam.frameRate)} fps nominal` : '') + (cam.zoom ? `, zoom ${Number(cam.zoom.value).toFixed(1)}×` : '') +
-      '. The measured rate above is what counts.');
+    notes.push(t('n.camMode', { w: cam.width, h: cam.height, fps: cam.frameRate ? Math.round(cam.frameRate) : 0,
+      zoom: cam.zoom ? Number(cam.zoom.value).toFixed(1) : 0 }));
   }
-  if (session.timeSource) notes.push(`Timestamp source: ${session.timeSource}.`);
+  if (session.timeSource) notes.push(t('n.tsSource', { src: TS_KEY[session.timeSource] ? t(TS_KEY[session.timeSource]) : session.timeSource }));
   if (session.sourceMode === 'rvfc') {
-    notes.push('Compatibility mode: this browser reports frame times less precisely than Chrome on Android. Treat small time differences with caution.');
+    notes.push(t('n.compat'));
   }
-  notes.push('Times are camera-pipeline timestamps, not sensor exposure times: expect an uncertainty of about one camera frame period.');
+  notes.push(t('n.pipeline'));
   for (const n of notes) { const li = document.createElement('li'); li.textContent = n; el.notes.append(li); }
 
   // thumbnails
@@ -120,12 +113,12 @@ function renderGallery(keepScroll) {
     const btn = document.createElement('button');
     btn.className = 'tile' + (flags.length ? ' flag' : '');
     btn.style.setProperty('--ar', `${f.width} / ${f.height}`);
-    btn.setAttribute('aria-label', `Frame ${f.index + 1}, ${formatSeconds(f.actualMs)} seconds`);
+    btn.setAttribute('aria-label', t('g.tileAria', { i: f.index + 1, t: formatSeconds(f.actualMs) }));
     const img = document.createElement('img'); img.src = url; img.alt = '';
     const cap = document.createElement('div'); cap.className = 'cap';
     const a = document.createElement('span'); a.textContent = `#${f.index + 1}`;
-    const t = document.createElement('span'); t.textContent = `${formatSeconds(f.actualMs)} s`;
-    cap.append(a, t);
+    const ts = document.createElement('span'); ts.textContent = `${formatSeconds(f.actualMs)} ${t('u.s')}`;
+    cap.append(a, ts);
     if (flags.length) { const w = document.createElement('span'); w.className = 'w'; w.textContent = '⚠'; cap.append(w); }
     btn.append(img, cap);
     btn.addEventListener('click', () => openViewer(state.frames.indexOf(f)));
@@ -134,7 +127,7 @@ function renderGallery(keepScroll) {
 
   el.table.textContent = frames.map((f, i) => {
     const fl = q.perFrame[i];
-    return formatFrameLine(f) + (fl.length ? '  ⚠ ' + fl.map((x) => FLAG_TEXT[x]).join('; ') : '');
+    return formatFrameLine(f) + (fl.length ? '  ⚠ ' + fl.map(flagText).join('; ') : '');
   }).join('\n');
 
   el.again.onclick = onAgain;
@@ -144,6 +137,23 @@ function renderGallery(keepScroll) {
 }
 
 // ================================ measurements ================================
+const posText = (p) => `x ${p.x.toFixed(1)}, y ${p.y.toFixed(1)} ${U('px')}`;
+const COL = { 'a.x': 'col.xa', 'a.y': 'col.ya', 'b.x': 'col.xb', 'b.y': 'col.yb', 'cm.x': 'col.xcm', 'cm.y': 'col.ycm' };
+function colLabel(col, unit, single) {
+  if (col === 't') return t('col.t');
+  const key = single ? (col.endsWith('.x') ? 'col.x' : 'col.y') : COL[col];
+  return `${t(key)} (${U(unit)})`;
+}
+
+// small EN · RU switch in the gallery header (the language is normally chosen once, at first launch)
+const langBtn = $('btn-lang');
+function renderLangBtn() {
+  const cur = getLang();
+  langBtn.innerHTML = ['en', 'ru'].map((l) => (l === cur ? `<b>${l.toUpperCase()}</b>` : l.toUpperCase())).join(' · ');
+}
+langBtn.onclick = () => setLang(getLang() === 'en' ? 'ru' : 'en');
+renderLangBtn();
+onLangChange(() => { renderLangBtn(); if (!el.screen.hidden && state.session) renderGallery(true); });
 const DEC = { px: 1, mm: 2, cm: 3, m: 4 };
 const fmtNum = (v, unit) => (v === null ? '—' : v.toFixed(DEC[unit] ?? 3).replace('-', '−'));
 
@@ -154,20 +164,13 @@ function refreshMeasurements() {
     if (tiles[i]) { tiles[i].classList.toggle('ma', !!m.a); tiles[i].classList.toggle('mb', !!m.b); }
   });
   const table = tableNow(), info = table.info;
-  const P = (k) => `${POINTS[k].name} (${POINTS[k].color})`;
   let status;
-  if (info.mode === 'none') status = 'No points marked yet. Open a frame and mark Point A (red) and/or Point B (blue).';
-  else if (info.mode === 'single') {
-    status = `Single-point measurement: ${P(info.single)} on ${info.single === 'a' ? info.nA : info.nB} frame(s). ` +
-      'Plot Y(X) and the centre of mass need both points marked on the same frames.';
-  } else if (info.mode === 'unpaired') {
-    status = `Both points are marked (A on ${info.nA}, B on ${info.nB} frames) but never on the same frame. ` +
-      'Mark A and B on the same frames to enable Plot Y(X).';
-  } else {
-    status = `Two-point measurement: A on ${info.nA}, B on ${info.nB} frame(s), both on ${info.paired}.`;
-    status += table.masses
-      ? ` Masses m_red = ${table.masses.a} g, m_blue = ${table.masses.b} g: centre of mass (green) on the ${info.paired} frame(s) with both points.`
-      : ' Tap Plot Y(X) to plot the trajectories; you can add masses there for the centre of mass.';
+  if (info.mode === 'none') status = t('m.none');
+  else if (info.mode === 'single') status = t('m.single', { pt: t('pt.' + info.single), n: info.single === 'a' ? info.nA : info.nB });
+  else if (info.mode === 'unpaired') status = t('m.unpaired', { a: info.nA, b: info.nB });
+  else {
+    status = t('m.two', { a: info.nA, b: info.nB, both: info.paired });
+    status += table.masses ? t('m.masses', { ma: table.masses.a, mb: table.masses.b, both: info.paired }) : t('m.noMasses');
   }
   el.mStatus.textContent = status;
   el.plot.disabled = !info.canPlot;
@@ -176,7 +179,7 @@ function refreshMeasurements() {
   if (table.rows.length) {
     const single = table.mode === 'single';
     const head = document.createElement('tr');
-    for (const c of ['#', ...table.columns.map((c) => columnLabel(c, table.unit, single))]) {
+    for (const c of ['#', ...table.columns.map((c) => colLabel(c, table.unit, single))]) {
       const th = document.createElement('th'); th.textContent = c; head.append(th);
     }
     el.mTable.append(head);
@@ -208,27 +211,26 @@ function refreshMeasurements() {
 
 function renderCoordInfo() {
   const s = state.setup, cs = coordSystem(s, imageH());
-  const parts = ['Origin: bottom-left corner of the picture, x to the right, y up'];
+  const parts = [t('c.origin')];
   if (s.vert && cs.angleRad) {
     const deg = cs.angleRad * 180 / Math.PI;
-    parts.push(`axes rotated by ${deg >= 0 ? '+' : '−'}${Math.abs(deg).toFixed(2)}° so that y points along the ` +
-      (s.vert.mode === 'sensor' ? 'vertical measured by the phone’s level at the start of recording' : 'vertical reference you marked'));
-  } else parts.push('picture edges taken as horizontal/vertical (no vertical reference set)');
+    parts.push(t('c.rot', { deg: `${deg >= 0 ? '+' : '−'}${Math.abs(deg).toFixed(2)}`, sensor: s.vert.mode === 'sensor' }));
+  } else parts.push(t('c.noRot'));
   parts.push(cs.scale
-    ? `scale: 1 px = ${Number(cs.scale.toPrecision(5))} ${cs.unit} (${s.cal.distance} ${s.cal.unit} between two marked points)`
-    : 'units: image pixels (no scale set)');
+    ? t('c.scale', { px: U('px'), s: Number(cs.scale.toPrecision(5)), unit: U(cs.unit), d: s.cal.distance, dunit: U(s.cal.unit) })
+    : t('c.noScale'));
   el.cDesc.textContent = parts.join('; ') + '.';
   el.calClear.hidden = !s.cal; el.vertClear.hidden = !s.vert;
-  el.cal.textContent = s.cal ? 'Change scale…' : 'Set scale…';
-  el.vert.textContent = s.vert && s.vert.mode === 'points' ? 'Change vertical…' : 'Set vertical…';
+  el.cal.textContent = t(s.cal ? 'g.changeScale' : 'g.setScale');
+  el.vert.textContent = t(s.vert && s.vert.mode === 'points' ? 'g.changeVert' : 'g.setVert');
   const st = state.session.sensorTiltDeg;
   el.vertSensor.hidden = !Number.isFinite(st);
-  if (Number.isFinite(st)) el.vertSensor.textContent = `Use phone level (${st >= 0 ? '+' : '−'}${Math.abs(st).toFixed(1)}°)`;
+  if (Number.isFinite(st)) el.vertSensor.textContent = t('c.sensorBtn', { deg: `${st >= 0 ? '+' : '−'}${Math.abs(st).toFixed(1)}` });
 }
 
 async function persistSetup() {
   try { await store.setSetup(state.setup); }
-  catch (e) { el.mStatus.textContent = 'Could not save: ' + e.message; }
+  catch (e) { el.mStatus.textContent = t('m.saveErr') + e.message; }
   refreshMeasurements();
   renderMarks();
 }
@@ -284,10 +286,10 @@ async function show(i) {
   if (i < 0 || i >= frames.length) return;
   V.i = i;
   const f = frames[i], token = ++V.token;
-  el.title.textContent = `Frame ${f.index + 1} (${i + 1} of ${frames.length})`;
-  el.line.textContent = `t = ${formatSeconds(f.actualMs)} s · target ${formatSeconds(f.targetMs)} s · ${formatSigned(f.deviationMs)}`;
+  el.title.textContent = t('v.title', { i: f.index + 1, k: i + 1, n: frames.length });
+  el.line.textContent = t('v.line', { t: formatSeconds(f.actualMs), target: formatSeconds(f.targetMs), dev: formatSigned(f.deviationMs) });
   const fl = (state.perFrame && state.perFrame[i]) || [];
-  el.warn.textContent = fl.length ? '⚠ ' + fl.map((x) => FLAG_TEXT[x]).join('; ') : '';
+  el.warn.textContent = fl.length ? '⚠ ' + fl.map(flagText).join('; ') : '';
   el.prev.disabled = i === 0; el.next.disabled = i === frames.length - 1;
   updateTools(); renderMarks();
   try {
@@ -304,7 +306,7 @@ async function show(i) {
     if (old) URL.revokeObjectURL(old);
     applyView();
   } catch (_) {
-    el.warn.textContent = 'This image could not be loaded.';
+    el.warn.textContent = t('v.loadErr');
   }
 }
 const go = (d) => show(V.i + d);   // zoom/pan is kept when stepping, to compare an object against a ruler
@@ -352,7 +354,7 @@ async function commitPoint() {
   if (V.target === 'a' || V.target === 'b') {
     refreshMeasurements();
     try { await store.setMarks(state.marks); }
-    catch (e) { el.hint.textContent = 'Could not save the mark: ' + e.message; }
+    catch (e) { el.hint.textContent = t('v.markErr') + e.message; }
   }
 }
 
@@ -364,7 +366,7 @@ function updateTools() {
   for (const k of ['a', 'b']) {
     const b = k === 'a' ? el.pa : el.pb;
     b.classList.toggle('on', V.target === k);
-    b.textContent = V.target === k ? `● ${k.toUpperCase()} ✓ done` : `● ${k.toUpperCase()}${m[k] ? ' (move)' : ''}`;
+    b.textContent = V.target === k ? `● ${k.toUpperCase()} ${t('v.done')}` : `● ${k.toUpperCase()}${m[k] ? ' ' + t('v.move') : ''}`;
   }
   el.stage.classList.toggle('marking', !!V.target);
   el.stage.dataset.target = V.target || '';
@@ -374,18 +376,17 @@ function updateTools() {
   el.clr.hidden = !(V.target === 'a' || V.target === 'b'); el.clr.disabled = !p;
   el.fine.hidden = !V.target;
   for (const b of el.fine.querySelectorAll('.nudge')) b.disabled = !p;
-  el.pos.textContent = p ? `x ${p.x.toFixed(1)}, y ${p.y.toFixed(1)} px` : 'no point yet';   // never empty: keeps the row height
+  el.pos.textContent = p ? posText(p) : t('v.noPoint');   // never empty: keeps the row height
   if (setup) {
     el.distWrap.hidden = V.target !== 'cal';
-    el.which.textContent = `Editing point ${V.sub === 'p1' ? '1' : '2'} ⇄`;
+    el.which.textContent = t('v.editing', { k: V.sub === 'p1' ? '1' : '2' });
   }
-  const what = { a: 'Point A (red)', b: 'Point B (blue)' }[V.target];
-  el.hint.textContent = V.target === 'cal' ? 'Touch two marks on the ruler (point 1, then point 2), enter their distance, Save.'
-    : V.target === 'vert' ? 'Touch two points on something truly vertical (plumb line, door frame), then Save.'
-    : what ? `Tap to mark ${what}, or slide to fine-tune with the magnifier. Two fingers zoom/move.`
-    : 'To mark a point: tap ● A (red) or ● B (blue) below, then tap the object.';
+  el.hint.textContent = V.target === 'cal' ? t('v.hintCal')
+    : V.target === 'vert' ? t('v.hintVert')
+    : V.target ? t('v.hintMark', { pt: t('pt.' + V.target) })
+    : t('v.hintIdle');
   const n = analyzeMarks(state.frames, state.marks);
-  el.count.textContent = `A: ${n.nA} · B: ${n.nB} of ${state.frames.length}`;
+  el.count.textContent = t('v.count', { a: n.nA, b: n.nB, n: state.frames.length });
 }
 
 // ---------- drawing marks (SVG overlay in screen coordinates) ----------
@@ -473,7 +474,7 @@ function dragTo(e) {
   const [sx, sy] = stageXY(e.clientX, e.clientY);
   const p = clampPt(screenToImage(view(), sx, sy));
   setPoint(p); renderMarks(); drawLoupe(sx, sy, p);
-  el.pos.textContent = `x ${p.x.toFixed(1)}, y ${p.y.toFixed(1)} px`;
+  el.pos.textContent = posText(p);
 }
 
 // ---------- pointer handling ----------
@@ -587,12 +588,12 @@ el.which.onclick = () => { V.sub = V.sub === 'p1' ? 'p2' : 'p1'; updateTools(); 
 el.setupCancel.onclick = () => closeViewer();
 el.setupOk.onclick = () => {
   const d = V.draft; if (!d) return;
-  if (!d.p1 || !d.p2) { el.hint.textContent = 'Place both points first.'; return; }
-  if (Math.hypot(d.p2.x - d.p1.x, d.p2.y - d.p1.y) < 5) { el.hint.textContent = 'The two points are too close together.'; return; }
+  if (!d.p1 || !d.p2) { el.hint.textContent = t('v.bothFirst'); return; }
+  if (Math.hypot(d.p2.x - d.p1.x, d.p2.y - d.p1.y) < 5) { el.hint.textContent = t('v.tooClose'); return; }
   const frame = curFrame().index;
   if (d.kind === 'cal') {
     const dist = Number(String(el.dist.value).replace(',', '.'));
-    if (!(dist > 0)) { el.hint.textContent = 'Enter the real distance between the two points (greater than 0).'; return; }
+    if (!(dist > 0)) { el.hint.textContent = t('v.distErr'); return; }
     state.setup.cal = { p1: d.p1, p2: d.p2, distance: dist, unit: el.unit.value, frame };
   } else {
     state.setup.vert = { mode: 'points', p1: d.p1, p2: d.p2, frame };
@@ -620,14 +621,14 @@ el.del.onclick = async () => {
   let image = null;
   try { image = await store.getImage(f.index); } catch (_) {}
   try { await store.deleteFrame(f.index); }
-  catch (e) { el.hint.textContent = 'Could not delete: ' + e.message; return; }
+  catch (e) { el.hint.textContent = t('v.deleteErr') + e.message; return; }
   const mark = state.marks[f.index];
   state.frames.splice(V.i, 1);                                   // the next frame now sits at the same position
   delete state.marks[f.index];
   if (mark) { try { await store.setMarks(state.marks); } catch (_) {} }
   renderGallery(true);
-  showToast(`Frame ${f.index + 1} deleted.`, image ? async () => {
-    try { await store.putFrame(f, image); } catch (e) { showToast('Could not restore: ' + e.message); return; }
+  showToast(t('v.deleted', { i: f.index + 1 }), image ? async () => {
+    try { await store.putFrame(f, image); } catch (e) { showToast(t('v.restoreErr') + e.message); return; }
     state.frames.push(f); state.frames.sort((a, b) => a.index - b.index);
     if (mark) { state.marks[f.index] = mark; try { await store.setMarks(state.marks); } catch (_) {} }
     renderGallery(true);

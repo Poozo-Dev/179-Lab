@@ -15,6 +15,7 @@
 // Timestamps are browser/capture-pipeline times, NOT sensor exposure times (see README).
 
 import { CONFIG } from './config.js';
+import { t } from './i18n.js';
 
 export class CameraError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -25,24 +26,24 @@ function toCameraError(e) {
   switch (e && e.name) {
     case 'NotAllowedError':
     case 'SecurityError':
-      return new CameraError('denied', 'Camera permission was denied. Allow camera access for this site in the browser settings, then tap "Try again".');
+      return new CameraError('denied', t('err.denied'));
     case 'NotFoundError':
     case 'OverconstrainedError':
-      return new CameraError('none', 'No camera was found on this device.');
+      return new CameraError('none', t('err.none'));
     case 'NotReadableError':
     case 'AbortError':
-      return new CameraError('busy', 'The camera could not be started. Close other apps that use the camera and tap "Try again".');
+      return new CameraError('busy', t('err.busy'));
     default:
-      return new CameraError('unknown', 'The camera could not be started. Tap "Try again".');
+      return new CameraError('unknown', t('err.unknown'));
   }
 }
 
 export async function openCamera() {
   if (!window.isSecureContext) {
-    throw new CameraError('insecure', 'The camera only works on a secure (https://) address.');
+    throw new CameraError('insecure', t('err.insecure'));
   }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new CameraError('unsupported', 'This browser cannot use the camera. Use Safari on iPhone or Chrome on Android.');
+    throw new CameraError('unsupported', t('err.unsupported'));
   }
   const v = CONFIG.video;
   // From most to least demanding; rear camera preferred but never required. The high-fps attempt uses
@@ -128,7 +129,7 @@ export class FrameSource {
     if (this.requested !== 'rvfc' && canProcessor) {
       try { await this._startProcessor(); this.mode = 'processor'; return this.mode; }
       catch (e) {
-        if (this.requested === 'processor') throw new CameraError('unsupported', 'Frame timestamps are not available in this browser.');
+        if (this.requested === 'processor') throw new CameraError('unsupported', t('err.noTimestamps'));
         this._cancelReader();            // broken/absent implementation -> fall back
       }
     }
@@ -190,7 +191,7 @@ export class FrameSource {
   _startRvfc() {
     const video = this.video;
     if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) {
-      throw new CameraError('unsupported', 'This browser is too old to provide video frame timing. Update Safari/Chrome.');
+      throw new CameraError('unsupported', t('err.oldBrowser'));
     }
     let field = null;   // which metadata field is our clock; fixed after the first frame (never mix clocks)
     const cb = (now, md) => {

@@ -3,11 +3,11 @@
 // cache from the network in the background (stale-while-revalidate), so a redeployed update arrives on the
 // next launch without anyone having to bump a version number.
 // APP_VERSION in js/config.js is shown in the camera screen's settings, to see which version a phone runs.
-const CACHE = 'physlab-shell-v4';
+const CACHE = 'physlab-shell-v5';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',
   'js/main.js', 'js/config.js', 'js/timing.js', 'js/frame-source.js', 'js/recorder.js', 'js/store.js', 'js/gallery.js', 'js/plot.js', 'js/save.js',
-  'js/measure.js', 'js/geometry.js', 'js/countdown.js',
+  'js/measure.js', 'js/geometry.js', 'js/countdown.js', 'js/i18n.js',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];
 

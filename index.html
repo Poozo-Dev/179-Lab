@@ -23,35 +23,35 @@
     <svg id="level" aria-hidden="true" hidden></svg>
     <div id="countdown" class="countdown" aria-live="assertive" hidden><span id="cd-num"></span></div>
     <div class="hud">
-      <span id="hud-state" class="pill">Starting camera…</span>
+      <span id="hud-state" class="pill" data-i18n="cam.starting">Starting camera…</span>
       <span id="hud-rate" class="pill" hidden></span>
-      <button id="btn-back" class="pill back" hidden>Frames</button>
+      <button id="btn-back" class="pill back" data-i18n="cam.frames" hidden>Frames</button>
     </div>
     <div id="cam-msg" class="msg" role="alert" hidden>
       <p id="cam-msg-text"></p>
-      <button id="btn-retry" class="btn">Try again</button>
+      <button id="btn-retry" class="btn" data-i18n="cam.retry">Try again</button>
     </div>
     <div class="controls">
       <div class="row">
-        <span class="lbl">Interval</span>
+        <span class="lbl" data-i18n="cam.interval">Interval</span>
         <div id="chips" class="chips"></div>
-        <label class="custom"><input id="interval-input" type="number" inputmode="decimal" step="0.05" min="0.05" max="5"> s</label>
+        <label class="custom"><input id="interval-input" type="number" inputmode="decimal" step="0.05" min="0.05" max="5"> <span data-i18n="u.s">s</span></label>
       </div>
       <div id="row-zoom" class="row" hidden>
-        <span class="lbl">Zoom</span>
-        <input id="zoom" type="range" aria-label="Camera zoom">
+        <span class="lbl" data-i18n="cam.zoom">Zoom</span>
+        <input id="zoom" type="range" aria-label="Camera zoom" data-i18n-aria="cam.zoomAria">
         <span id="zoom-val" class="zval"></span>
       </div>
       <div class="row">
-        <label class="lbl">Countdown <select id="countdown-sel" class="sel"></select></label>
-        <button id="btn-level" class="chip" aria-pressed="false">Level</button>
+        <label class="lbl"><span data-i18n="cam.countdownLbl">Countdown</span> <select id="countdown-sel" class="sel"></select></label>
+        <button id="btn-level" class="chip" aria-pressed="false" data-i18n="cam.level">Level</button>
       </div>
       <details class="settings">
-        <summary>Settings</summary>
-        <p id="row-exposure" hidden><label>Exposure <select id="exposure"></select></label><br>
-          <span class="small">A short exposure reduces motion blur but darkens the picture; use bright light.</span></p>
-        <p id="exposure-tip" class="small">For moving objects use bright light: the camera then chooses a shorter exposure (less motion blur). A high frame rate alone does not guarantee short exposures.</p>
-        <p class="small">Zoom uses the camera's own zoom. Beyond the lens's optical range it is digital (it crops the picture and adds no detail). Keep zoom and phone position unchanged between calibration and measurement.</p>
+        <summary data-i18n="cam.settings">Settings</summary>
+        <p id="row-exposure" hidden><label><span data-i18n="cam.exposure">Exposure</span> <select id="exposure"></select></label><br>
+          <span class="small" data-i18n="cam.expNote">A short exposure reduces motion blur but darkens the picture; use bright light.</span></p>
+        <p id="exposure-tip" class="small" data-i18n="cam.expTip">For moving objects use bright light: the camera then chooses a shorter exposure (less motion blur). A high frame rate alone does not guarantee short exposures.</p>
+        <p class="small" data-i18n="cam.zoomNote">Zoom uses the camera's own zoom. Beyond the lens's optical range it is digital (it crops the picture and adds no detail). Keep zoom and phone position unchanged between calibration and measurement.</p>
         <p id="app-version" class="ver"></p>
       </details>
       <div class="rec-wrap">
@@ -63,109 +63,117 @@
   <!-- ===== Screen 2: gallery ===== -->
   <section id="screen-gallery" hidden>
     <header class="g-head">
-      <h1>Experiment frames</h1>
+      <div class="g-title"><h1 data-i18n="g.title">Experiment frames</h1><button id="btn-lang" class="lang-switch" aria-label="Language / Язык"></button></div>
       <p id="g-sub" class="muted"></p>
     </header>
     <div id="g-quality" class="banner"></div>
     <details class="table info">
-      <summary>Video information</summary>
+      <summary data-i18n="g.info">Video information</summary>
       <ul id="g-notes" class="notes"></ul>
     </details>
-    <p class="muted tip">Tip: open a frame and tap <b>● A</b> (red) or <b>● B</b> (blue), then touch the object; a magnifier shows the exact spot and the arrows move the point by one image pixel. Mark one colour for a simple t, x, y table; mark both on the same frames for <b>Plot Y(X)</b> and the centre of mass.</p>
+    <p class="muted tip" data-i18n-html="g.tip">Tip: open a frame and tap <b>● A</b> (red) or <b>● B</b> (blue), then touch the object; a magnifier shows the exact spot and the arrows move the point by one image pixel. Mark one colour for a simple t, x, y table; mark both on the same frames for <b>Plot Y(X)</b> and the centre of mass.</p>
     <div id="g-grid" class="grid"></div>
     <section id="g-measure" class="panel">
-      <h2>Measurements</h2>
+      <h2 data-i18n="g.measurements">Measurements</h2>
       <p id="m-status" class="muted small"></p>
       <div class="tablewrap"><table id="m-table"></table></div>
-      <div class="btns"><button id="btn-csv" class="btn" disabled>Export CSV</button></div>
+      <div class="btns"><button id="btn-csv" class="btn" data-i18n="g.csv" disabled>Export CSV</button></div>
     </section>
     <details id="g-coords" class="table">
-      <summary>Scale &amp; vertical (coordinate system)</summary>
+      <summary data-i18n="g.coords">Scale &amp; vertical (coordinate system)</summary>
       <p id="c-desc" class="small"></p>
       <div class="btns">
         <button id="btn-cal" class="btn">Set scale…</button>
-        <button id="btn-cal-clear" class="btn" hidden>Remove scale</button>
+        <button id="btn-cal-clear" class="btn" data-i18n="g.removeScale" hidden>Remove scale</button>
       </div>
       <div class="btns">
         <button id="btn-vert" class="btn">Set vertical…</button>
         <button id="btn-vert-sensor" class="btn" hidden></button>
-        <button id="btn-vert-clear" class="btn" hidden>Remove vertical</button>
+        <button id="btn-vert-clear" class="btn" data-i18n="g.removeVert" hidden>Remove vertical</button>
       </div>
-      <p class="small muted">A two-point scale does not correct perspective or lens distortion: keep the ruler in the plane of the motion and the camera square to it. If the zoom or the phone position changed, set the scale again.</p>
+      <p class="small muted" data-i18n="g.persp">A two-point scale does not correct perspective or lens distortion: keep the ruler in the plane of the motion and the camera square to it. If the zoom or the phone position changed, set the scale again.</p>
     </details>
     <details class="table">
-      <summary>Timing table (all frames)</summary>
+      <summary data-i18n="g.timingTable">Timing table (all frames)</summary>
       <pre id="g-table"></pre>
     </details>
     <footer class="g-foot">
-      <button id="btn-again" class="btn">Record again</button>
-      <button id="btn-plot" class="btn primary" disabled>Plot Y(X)</button>
-      <button id="btn-finish" class="btn danger">Finish &amp; clear data</button>
+      <button id="btn-again" class="btn" data-i18n="g.again">Record again</button>
+      <button id="btn-plot" class="btn primary" data-i18n="g.plot" disabled>Plot Y(X)</button>
+      <button id="btn-finish" class="btn danger" data-i18n="g.finish">Finish &amp; clear data</button>
     </footer>
   </section>
 
   <!-- ===== Full-screen image viewer ===== -->
   <div id="viewer" hidden>
     <div id="v-top">
-      <button id="v-close" class="vbtn" aria-label="Close">✕</button>
+      <button id="v-close" class="vbtn" aria-label="Close" data-i18n-aria="v.close">✕</button>
       <div id="v-cap"><b id="v-title"></b><span id="v-line"></span><span id="v-warn"></span><span id="v-hint"></span></div>
-      <button id="v-save" class="vbtn" aria-label="Save image">Save</button>
+      <button id="v-save" class="vbtn" aria-label="Save image" data-i18n-aria="v.saveAria" data-i18n="v.save">Save</button>
     </div>
     <div id="v-stage"><img id="v-img" alt="" draggable="false"><svg id="v-marks" aria-hidden="true"></svg><canvas id="v-loupe" hidden></canvas></div>
     <div id="v-setup" hidden>
       <button id="v-which" class="vbtn"></button>
-      <label id="v-dist-wrap">Distance <input id="v-dist" type="number" inputmode="decimal" min="0" step="any">
-        <select id="v-unit"><option>mm</option><option>cm</option><option>m</option></select></label>
-      <button id="v-setup-ok" class="vbtn tool">Save</button>
-      <button id="v-setup-cancel" class="vbtn">Cancel</button>
+      <label id="v-dist-wrap"><span data-i18n="v.distance">Distance</span> <input id="v-dist" type="number" inputmode="decimal" min="0" step="any">
+        <select id="v-unit"><option value="mm" data-i18n="u.mm">mm</option><option value="cm" data-i18n="u.cm">cm</option><option value="m" data-i18n="u.m">m</option></select></label>
+      <button id="v-setup-ok" class="vbtn tool" data-i18n="v.save">Save</button>
+      <button id="v-setup-cancel" class="vbtn" data-i18n="v.cancel">Cancel</button>
     </div>
     <div id="v-fine" hidden>
-      <button class="vbtn nudge" data-dx="-1" data-dy="0" aria-label="Move left one pixel">←</button>
-      <button class="vbtn nudge" data-dx="0" data-dy="-1" aria-label="Move up one pixel">↑</button>
-      <button class="vbtn nudge" data-dx="0" data-dy="1" aria-label="Move down one pixel">↓</button>
-      <button class="vbtn nudge" data-dx="1" data-dy="0" aria-label="Move right one pixel">→</button>
+      <button class="vbtn nudge" data-dx="-1" data-dy="0" aria-label="Move left one pixel" data-i18n-aria="v.left">←</button>
+      <button class="vbtn nudge" data-dx="0" data-dy="-1" aria-label="Move up one pixel" data-i18n-aria="v.up">↑</button>
+      <button class="vbtn nudge" data-dx="0" data-dy="1" aria-label="Move down one pixel" data-i18n-aria="v.down">↓</button>
+      <button class="vbtn nudge" data-dx="1" data-dy="0" aria-label="Move right one pixel" data-i18n-aria="v.right">→</button>
       <span id="v-pos" class="small"></span>
     </div>
     <div id="v-tools">
       <button id="v-pa" class="vbtn tool a">● A</button>
       <button id="v-pb" class="vbtn tool b">● B</button>
-      <button id="v-clr" class="vbtn" hidden>Clear</button>
-      <button id="v-fit" class="vbtn">Fit</button>
-      <button id="v-delete" class="vbtn danger">Delete</button>
+      <button id="v-clr" class="vbtn" data-i18n="v.clear" hidden>Clear</button>
+      <button id="v-fit" class="vbtn" data-i18n="v.fit">Fit</button>
+      <button id="v-delete" class="vbtn danger" data-i18n="v.delete">Delete</button>
     </div>
     <div id="v-bottom">
-      <button id="v-prev" class="vbtn big" aria-label="Previous frame">‹</button>
+      <button id="v-prev" class="vbtn big" aria-label="Previous frame" data-i18n-aria="v.prev">‹</button>
       <span id="v-count" class="muted"></span>
-      <button id="v-next" class="vbtn big" aria-label="Next frame">›</button>
+      <button id="v-next" class="vbtn big" aria-label="Next frame" data-i18n-aria="v.next">›</button>
     </div>
   </div>
 
   <!-- ===== Plot Y(X): only opened by the student, only for two-point experiments ===== -->
   <div id="plot" hidden>
     <div id="p-top">
-      <button id="p-close" class="vbtn" aria-label="Close">✕</button>
-      <b id="p-title">Plot Y(X)</b>
-      <button id="p-save" class="vbtn" aria-label="Save plot as image">Save</button>
+      <button id="p-close" class="vbtn" aria-label="Close" data-i18n-aria="v.close">✕</button>
+      <b id="p-title" data-i18n="p.title">Plot Y(X)</b>
+      <button id="p-save" class="vbtn" aria-label="Save plot as image" data-i18n-aria="p.saveAria" data-i18n="v.save">Save</button>
     </div>
     <form id="p-mass" class="p-mass" hidden novalidate>
-      <p>Masses at the two points (optional). With both masses the centre of mass is calculated and plotted in green. Only their ratio matters.</p>
-      <label>m<sub>red</sub> <input id="p-ma" type="number" inputmode="decimal" min="0" step="any"> g</label>
-      <label>m<sub>blue</sub> <input id="p-mb" type="number" inputmode="decimal" min="0" step="any"> g</label>
+      <p data-i18n="p.massIntro">Masses at the two points (optional). With both masses the centre of mass is calculated and plotted in green. Only their ratio matters.</p>
+      <label>m<sub>red</sub> <input id="p-ma" type="number" inputmode="decimal" min="0" step="any"> <span data-i18n="u.g">g</span></label>
+      <label>m<sub>blue</sub> <input id="p-mb" type="number" inputmode="decimal" min="0" step="any"> <span data-i18n="u.g">g</span></label>
       <p id="p-mass-err" class="err" role="alert"></p>
       <div class="btns">
-        <button id="p-skip" type="button" class="btn">Skip — plot red &amp; blue</button>
-        <button type="submit" class="btn primary">Plot with masses</button>
+        <button id="p-skip" type="button" class="btn" data-i18n="p.skip">Skip — plot red &amp; blue</button>
+        <button type="submit" class="btn primary" data-i18n="p.withMasses">Plot with masses</button>
       </div>
     </form>
     <div id="p-chart" hidden>
-      <div class="btns"><button id="p-masses" class="chip">Masses…</button></div>
+      <div class="btns"><button id="p-masses" class="chip" data-i18n="p.masses">Masses…</button></div>
       <div id="p-wrap"><canvas id="p-canvas"></canvas></div>
       <ul id="p-info" class="notes"></ul>
     </div>
   </div>
 
-  <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="toast-undo" class="btn">Undo</button></div>
+  <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="toast-undo" class="btn" data-i18n="v.undo">Undo</button></div>
 
-  <noscript><p style="padding:2rem;color:#fff">This app needs JavaScript.</p></noscript>
+  <!-- ===== First launch: language ===== -->
+  <div id="lang-modal" class="modal" role="dialog" aria-modal="true" hidden>
+    <div class="modal-box">
+      <p><b>Choose your language</b><br>Выберите язык</p>
+      <div class="btns"><button class="btn primary" data-lang="en">English</button><button class="btn primary" data-lang="ru">Русский</button></div>
+    </div>
+  </div>
+
+  <noscript><p style="padding:2rem;color:#fff">This app needs JavaScript. / Для работы приложения нужен JavaScript.</p></noscript>
 </body>
 </html>

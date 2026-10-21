@@ -5,14 +5,14 @@
 //   meta   : key 'marks' -> measured points, key 'setup' -> masses / calibration / vertical
 // Images are stored as ArrayBuffer rather than Blob: older Safari versions had bugs with Blobs in IndexedDB.
 
+import { t } from './i18n.js';
+
 const DB_NAME = 'physlab', DB_VERSION = 1;
 let dbPromise = null;
 
 export class StorageError extends Error {
   constructor(full, cause) {
-    super(full
-      ? 'The phone is out of storage space. Free some space (delete photos/apps), then record again.'
-      : 'The phone could not save the images (browser storage problem). Do not use private browsing mode.');
+    super(full ? t('err.storageFull') : t('err.storage'));
     this.full = full; this.cause = cause;
   }
 }

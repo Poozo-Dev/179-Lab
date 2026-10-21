@@ -7,6 +7,7 @@
 // between have no mark for that point — nothing is interpolated there.
 import { POINTS, CM_CSS, validMasses, plotSeries } from './measure.js';
 import { saveBlob } from './save.js';
+import { t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const el = { root: $('plot'), canvas: $('p-canvas'), close: $('p-close'), save: $('p-save'), info: $('p-info'),
@@ -35,13 +36,13 @@ export function drawPlot(ctx, W, H, data) {
 
   // legend (also ends up in the saved picture)
   ctx.font = '600 14px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#111';
-  ctx.fillText('Plot Y(X) — measured positions', 12, 20);
+  ctx.fillText(t('p.chartTitle'), 12, 20);
   data.series.forEach((s, i) => {
     const y = 38 + 18 * i;
     ctx.strokeStyle = s.color; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(14, y - 4); ctx.lineTo(38, y - 4); ctx.stroke();
     ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(26, y - 4, 4.5, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#222'; ctx.font = '13px system-ui, sans-serif';
-    ctx.fillText(`${s.label} — ${s.points.length} point${s.points.length === 1 ? '' : 's'}`, 46, y);
+    ctx.fillText(`${s.label} — ${t('p.points', { n: s.points.length })}`, 46, y);
   });
 
   const all = data.series.flatMap((s) => s.points);
@@ -63,8 +64,8 @@ export function drawPlot(ctx, W, H, data) {
   for (const v of ty.values) { const Y = my(v); ctx.strokeStyle = '#e6e6e6'; ctx.beginPath(); ctx.moveTo(L, Y); ctx.lineTo(L + pw, Y); ctx.stroke(); ctx.fillText(v.toFixed(ty.decimals), L - 6, Y + 4); }
   ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.strokeRect(L, T, pw, ph);
   ctx.fillStyle = '#222'; ctx.font = '12.5px system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(`x (${data.unit})`, L + pw / 2, H - 10);
-  ctx.save(); ctx.translate(15, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(`y (${data.unit})`, 0, 0); ctx.restore();
+  ctx.fillText(`x (${t('u.' + data.unit)})`, L + pw / 2, H - 10);
+  ctx.save(); ctx.translate(15, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(`y (${t('u.' + data.unit)})`, 0, 0); ctx.restore();
 
   ctx.save(); ctx.beginPath(); ctx.rect(L, T, pw, ph); ctx.clip();
   for (const s of data.series) {
@@ -100,25 +101,22 @@ function showChart(masses) {
   const pos = new Map(c.frameOrder.map((idx, i) => [idx, i]));
   const mk = (pts) => pts.map((p) => ({ x: p.x, y: p.y, pos: pos.get(p.index) }));
   const series = [
-    { label: 'Point A (red)', color: POINTS.a.css, points: mk(ser.a) },
-    { label: 'Point B (blue)', color: POINTS.b.css, points: mk(ser.b) },
+    { label: t('pt.a'), color: POINTS.a.css, points: mk(ser.a) },
+    { label: t('pt.b'), color: POINTS.b.css, points: mk(ser.b) },
   ];
-  if (ser.cm) series.push({ label: 'Centre of mass (green)', color: CM_CSS, points: mk(ser.cm) });
+  if (ser.cm) series.push({ label: t('pt.cm'), color: CM_CSS, points: mk(ser.cm) });
   P.data = { series, unit: ser.unit };
   el.form.hidden = true; el.chart.hidden = false; el.save.hidden = false;
   redraw();
 
   const notes = [];
-  for (const s of series) if (s.points.length < 2) notes.push(`${s.label}: only ${s.points.length} marked frame — mark more frames to see a trajectory.`);
+  for (const s of series) if (s.points.length < 2) notes.push(t('p.few', { label: s.label, n: s.points.length }));
   if (ser.cm) {
-    notes.push(`Centre of mass for the ${ser.cm.length} frame(s) that have both points, with m_red = ${fmtMass(table.masses.a)} g and m_blue = ${fmtMass(table.masses.b)} g. ` +
-      'Frames with only one point have no centre of mass. Nothing is fitted: the green path comes straight from your marks.');
-  } else notes.push('No masses entered, so no centre of mass is shown. Tap “Masses…” to add them.');
-  notes.push('Lines join the points in time order. A dashed line means frames in between have no mark for that point (nothing is filled in).');
-  notes.push(ser.unit === 'px'
-    ? 'Coordinates are image pixels (origin bottom-left, y up). Set a scale in the gallery to get millimetres or metres.'
-    : `Coordinates in ${ser.unit} using your scale (origin bottom-left of the picture, y up).`);
-  if (c.timingOk === false) notes.push('Warning: the timing check of this recording failed, so the time order of points may be unreliable.');
+    notes.push(t('p.cm', { n: ser.cm.length, ma: fmtMass(table.masses.a), mb: fmtMass(table.masses.b) }));
+  } else notes.push(t('p.noCm'));
+  notes.push(t('p.lines'));
+  notes.push(ser.unit === 'px' ? t('p.px') : t('p.units', { unit: t('u.' + ser.unit) }));
+  if (c.timingOk === false) notes.push(t('p.timing'));
   el.info.innerHTML = '';
   for (const t of notes) { const li = document.createElement('li'); li.textContent = t; el.info.append(li); }
 }
@@ -149,7 +147,7 @@ el.form.addEventListener('submit', (e) => {
   const num = (s) => Number(String(s).replace(',', '.').trim());
   const m = validMasses({ a: num(el.ma.value), b: num(el.mb.value) });
   if (!m || el.ma.value.trim() === '' || el.mb.value.trim() === '') {
-    el.err.textContent = 'Enter two masses greater than 0 (or tap Skip).'; return;
+    el.err.textContent = t('p.massErr'); return;
   }
   P.ctx.masses = m; P.ctx.onMasses(m);
   showChart(m);

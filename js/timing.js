@@ -6,6 +6,8 @@
 // For every target we keep the frame whose *measured* timestamp is nearest to it.
 // Frame numbers / nominal FPS are never used to compute time.
 
+import { t } from './i18n.js';
+
 export const DEFAULTS = Object.freeze({
   intervalMs: 200,     // sampling interval between kept frames
   toleranceMs: 25,     // max allowed |actual - target| before a frame is flagged
@@ -136,9 +138,7 @@ export function alignmentNote(intervalMs, periodMs) {
   if (frac < 0.1) return null;
   const lo = Math.max(1, Math.floor(n)) * periodMs, hi = Math.ceil(n) * periodMs;
   const s = (ms) => (ms / 1000).toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
-  return `The interval (${s(intervalMs)} s) is ${n.toFixed(2)} camera frames long, not a whole number, so the ` +
-    `kept frames alternate between earlier and later than their target (up to ±${(periodMs / 2).toFixed(1)} ms). ` +
-    `Intervals that fit this camera: ${s(lo)} s or ${s(hi)} s.`;
+  return t('q.align', { iv: s(intervalMs), n: n.toFixed(2), half: (periodMs / 2).toFixed(1), lo: s(lo), hi: s(hi) });
 }
 
 /** Running camera-rate estimate for the live preview (no selection involved). */
@@ -180,44 +180,38 @@ export function assessQuality(selections, stats, opts = {}) {
 
   const problems = [], notes = [];
   const n = selections.length;
-  if (n < 2) problems.push('Too few frames were captured. Record again.');
+  if (n < 2) problems.push(t('q.tooFew'));
   if (bad > 0) {
-    problems.push(`${bad} of ${n} frames have unreliable timing (marked with a warning). ` +
-      'Repeat the experiment before using these times for calculations.');
+    problems.push(t('q.bad', { bad, n }));
   }
   if (stats?.nonMonotonic > 0) {
-    problems.push(`${stats.nonMonotonic} camera frame(s) had invalid timestamps and were ignored.`);
+    problems.push(t('q.nonMono', { n: stats.nonMonotonic }));
   }
   if (med > 0) {
     const quant = med / 2;
-    notes.push(`Camera delivered about ${(1000 / med).toFixed(1)} frames/s ` +
-      `(median ${med.toFixed(1)} ms between frames).`);
+    notes.push(t('q.rate', { fps: (1000 / med).toFixed(1), med: med.toFixed(1) }));
     if (tol < quant) {
-      notes.push(`With this frame rate a timing error of up to ±${quant.toFixed(1)} ms is unavoidable; ` +
-        `the tolerance (±${tol} ms) is stricter than the camera can guarantee.`);
+      notes.push(t('q.quant', { q: quant.toFixed(1), tol: Math.round(tol * 10) / 10 }));
     }
     if (med > 2 * tol) {            // only a hint: a frame really off target is flagged above
-      notes.push('The camera is slow (low frame rate, often in dim light) compared with the allowed timing error, ' +
-        'so frames may miss their target. Better lighting or a larger interval helps.');
+      notes.push(t('q.slow'));
     }
     const align = alignmentNote(opts.intervalMs, med);
     if (align) notes.push(align);
     if (stats.droppedFrames > 0) {
-      notes.push(`About ${stats.droppedFrames} camera frame(s) were dropped during the recording ` +
-        '(kept images next to a gap are marked).');
+      notes.push(t('q.dropped', { n: stats.droppedFrames }));
     }
     if (stats.unstableShare > 0.1) {
-      notes.push(`The camera frame rate was unstable (${Math.round(stats.unstableShare * 100)} % of frame intervals ` +
-        'differ by more than 25 % from the typical one). Better lighting usually helps.');
+      notes.push(t('q.unstable', { pct: Math.round(stats.unstableShare * 100) }));
     }
   }
   return { ok: problems.length === 0, perFrame, problems, notes, worstDeviationMs: worst, badCount: bad };
 }
 
 const sec = (ms) => (ms / 1000).toFixed(3);
-export function formatSigned(ms) { const r = Math.round(ms); return (r >= 0 ? '+' : '−') + Math.abs(r) + ' ms'; }
+export function formatSigned(ms) { const r = Math.round(ms); return (r >= 0 ? '+' : '−') + Math.abs(r) + ' ' + t('u.ms'); }
 /** "Frame 4 | Target: 0.600 s | Actual: 0.603 s | Deviation: +3 ms"  (frame numbers are 1-based) */
 export function formatFrameLine(s) {
-  return `Frame ${s.index + 1} | Target: ${sec(s.targetMs)} s | Actual: ${sec(s.actualMs)} s | Deviation: ${formatSigned(s.deviationMs)}`;
+  return t('q.line', { i: s.index + 1, target: sec(s.targetMs), actual: sec(s.actualMs), dev: formatSigned(s.deviationMs) });
 }
 export { sec as formatSeconds };
