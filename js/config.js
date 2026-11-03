@@ -1,7 +1,7 @@
 // config.js — the only place a teacher/developer needs to touch to change behaviour.
 import { DEFAULTS } from './timing.js';
 
-export const APP_VERSION = '1.9.0 (2026-11-03)';   // shown under "Settings"; bump when deploying
+export const APP_VERSION = '1.9.1 (2026-11-03)';   // shown under "Settings"; bump when deploying
 
 export const CONFIG = {
   ...DEFAULTS,                       // intervalMs, toleranceMs, gapFactor, maxFrames (see timing.js)
@@ -17,6 +17,7 @@ export const CONFIG = {
   durationOptionsS: [0, 1, 2, 3, 5, 10],   // automatic stop after this recording time; 0 = stop by hand
   // Short exposure choices offered when the camera supports manual exposure (seconds)
   exposureOptionsS: [1 / 250, 1 / 500, 1 / 1000],
+  cropZoomMax: 4,                    // digital crop zoom range (used when the browser has no native camera zoom)
   levelToleranceDeg: 1,              // level overlay turns green within this angle
   thumbWidth: 320,
   // Fallback (requestVideoFrameCallback) path only: if our callback runs this much later than the

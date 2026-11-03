@@ -45,7 +45,7 @@ export function drawPlot(ctx, W, H, data) {
     ctx.fillText(`${s.label} — ${t('p.points', { n: s.points.length })}`, 46, y);
   });
 
-  const all = data.series.flatMap((s) => s.points);
+  const all = [].concat(...data.series.map((s) => s.points));
   if (!all.length) return;
   const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
   const padR = (lo, hi) => { const r = hi - lo, p = r > 0 ? r * 0.08 : (Math.abs(hi) * 0.1 || 1); return [lo - p, hi + p]; };
@@ -123,7 +123,7 @@ function showChart(masses) {
 
 function showMassForm() {
   const m = P.ctx.masses || {};
-  el.ma.value = m.a ?? ''; el.mb.value = m.b ?? ''; el.err.textContent = '';
+  el.ma.value = m.a != null ? m.a : ''; el.mb.value = m.b != null ? m.b : ''; el.err.textContent = '';
   el.form.hidden = false; el.chart.hidden = true; el.save.hidden = true;
 }
 

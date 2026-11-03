@@ -16,6 +16,11 @@ Things that are **not** in the README: how to work on this project, what to keep
 - Repo: `https://github.com/Poozo-Dev/179-Lab`, branch `main`, served by GitHub Pages at `https://poozo-dev.github.io/179-Lab/`. A push to `main` is the deploy.
 - **Bump `APP_VERSION` in `js/config.js` on every deploy**, so the phone shows which version it runs ("App version … " under *Settings*).
 - After a deploy the phone needs **two** opens (the service worker serves the cached copy first, then updates it). Force-close the app between the opens.
+- Before deploying a UI change, run the cross-platform usability matrix `tools/ui-matrix.mjs` (usage at its top):
+  Chrome-style, native zoom, broken native zoom and a limited Safari/WebView-like profile (no VideoFrame, sensors,
+  Web Audio, wake lock, ResizeObserver) at 280×560 … 1024×768, touch and mouse, EN and RU. All must PASS.
+- Keep the JavaScript parseable by older Android WebViews (Huawei, DuckDuckGo): no `?.`, `??`, and use
+  top/right/bottom/left instead of the CSS `inset` shorthand.
 - Run unit tests before pushing: `node --test tests/*.test.js` (note the glob; `node --test tests/` fails on Node 22).
 - Changing which files the service worker precaches (`sw.js` `SHELL` list) or making a larger shell change: bump `CACHE` in `sw.js` (currently `physlab-shell-v4`).
 - The Windows folder `LabCode` on the user's PC is a manual mirror of the repo. Keep it in sync if the user uses it, but never treat it as the source of truth.

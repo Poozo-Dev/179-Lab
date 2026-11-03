@@ -83,7 +83,7 @@ export function cameraInfo(stream) {
   const expTime = range(c.exposureTime);
   return {
     width: s.width || null, height: s.height || null, frameRate: s.frameRate || null,
-    zoom: zoom ? { min: zoom.min, max: zoom.max, step: zoom.step || 0.1, value: s.zoom ?? zoom.min } : null,
+    zoom: zoom ? { min: zoom.min, max: zoom.max, step: zoom.step || 0.1, value: s.zoom != null ? s.zoom : zoom.min } : null,
     // exposureTime is in units of 100 µs (W3C Image Capture spec)
     exposure: expTime && Array.isArray(c.exposureMode) && c.exposureMode.includes('manual')
       ? { min: expTime.min, max: expTime.max, modes: c.exposureMode } : null,
@@ -96,7 +96,7 @@ export async function setZoom(stream, value) {
   const track = stream && stream.getVideoTracks()[0];
   if (!track) return null;
   await track.applyConstraints({ advanced: [{ zoom: value }] });
-  try { return track.getSettings().zoom ?? null; } catch (_) { return null; }
+  try { const z = track.getSettings().zoom; return z != null ? z : null; } catch (_) { return null; }
 }
 
 /** seconds = null -> automatic exposure; otherwise a fixed short exposure time (clamped to what the camera allows). */
@@ -183,7 +183,8 @@ export class FrameSource {
         width: frame.displayWidth,
         height: frame.displayHeight,
         suspect: false,                          // pixels and timestamp belong to the same object
-        draw: (ctx) => ctx.drawImage(frame, 0, 0),
+        // c = optional crop {x, y, w, h} in camera pixels (digital zoom): copied 1:1, never scaled
+        draw: (ctx, c) => (c ? ctx.drawImage(frame, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h) : ctx.drawImage(frame, 0, 0)),
       });
     } catch (e) { this.onError(e); }
     finally { frame.close(); }                   // always release the camera buffer
@@ -213,7 +214,8 @@ export class FrameSource {
           width: video.videoWidth,
           height: video.videoHeight,
           suspect: latency > CONFIG.lateCallbackMs,
-          draw: (ctx) => ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight),
+          draw: (ctx, c) => (c ? ctx.drawImage(video, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h)
+            : ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight)),
         });
       } catch (e) { this.onError(e); }
     };

@@ -161,9 +161,9 @@ export class RateEstimator {
  * Returns { ok, perFrame:[flags[]], problems:[string], notes:[string], worstDeviationMs, badCount }
  */
 export function assessQuality(selections, stats, opts = {}) {
-  const tol = opts.toleranceMs ?? DEFAULTS.toleranceMs;
-  const gapFactor = opts.gapFactor ?? DEFAULTS.gapFactor;
-  const med = stats?.medianIntervalMs;
+  const tol = opts.toleranceMs != null ? opts.toleranceMs : DEFAULTS.toleranceMs;
+  const gapFactor = opts.gapFactor != null ? opts.gapFactor : DEFAULTS.gapFactor;
+  const med = stats ? stats.medianIntervalMs : NaN;
   const perFrame = [];
   let worst = 0, bad = 0;
 
@@ -184,7 +184,7 @@ export function assessQuality(selections, stats, opts = {}) {
   if (bad > 0) {
     problems.push(t('q.bad', { bad, n }));
   }
-  if (stats?.nonMonotonic > 0) {
+  if (stats && stats.nonMonotonic > 0) {
     problems.push(t('q.nonMono', { n: stats.nonMonotonic }));
   }
   if (med > 0) {

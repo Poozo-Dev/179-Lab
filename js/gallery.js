@@ -97,6 +97,7 @@ function renderGallery(keepScroll) {
     notes.push(t('n.camMode', { w: cam.width, h: cam.height, fps: cam.frameRate ? Math.round(cam.frameRate) : 0,
       zoom: cam.zoom ? Number(cam.zoom.value).toFixed(1) : 0 }));
   }
+  if (session.crop) notes.push(t('n.crop', { z: Number(session.crop.zoom).toFixed(1), w: session.crop.w, h: session.crop.h, fw: session.crop.fullW, fh: session.crop.fullH }));
   if (session.timeSource) notes.push(t('n.tsSource', { src: TS_KEY[session.timeSource] ? t(TS_KEY[session.timeSource]) : session.timeSource }));
   if (session.sourceMode === 'rvfc') {
     notes.push(t('n.compat'));
@@ -155,7 +156,7 @@ langBtn.onclick = () => setLang(getLang() === 'en' ? 'ru' : 'en');
 renderLangBtn();
 onLangChange(() => { renderLangBtn(); if (!el.screen.hidden && state.session) renderGallery(true); });
 const DEC = { px: 1, mm: 2, cm: 3, m: 4 };
-const fmtNum = (v, unit) => (v === null ? '—' : v.toFixed(DEC[unit] ?? 3).replace('-', '−'));
+const fmtNum = (v, unit) => (v === null ? '—' : v.toFixed(unit in DEC ? DEC[unit] : 3).replace('-', '−'));
 
 /** Everything derived from the marks/setup is recomputed here after EVERY change (no stale results). */
 function refreshMeasurements() {

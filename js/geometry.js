@@ -47,3 +47,21 @@ export class AngleSmoother {
     return Math.atan2(this.s, this.c) * 180 / Math.PI;
   }
 }
+
+// ---------------- digital crop zoom (fallback when the browser offers no native camera zoom) ----------------
+/**
+ * The live preview shows the camera picture "contained" in a view of viewW×viewH and enlarged by `zoom` around
+ * the centre. Returns which share of the picture's width and height is then visible (1 = all of it), so the
+ * saved photo can be cropped to exactly what the student saw.
+ */
+export function visibleFraction(viewW, viewH, imgW, imgH, zoom) {
+  if (!(zoom > 1) || !(imgW > 0) || !(imgH > 0) || !(viewW > 0) || !(viewH > 0)) return { fw: 1, fh: 1 };
+  const s = Math.min(viewW / imgW, viewH / imgH) * zoom;          // screen px per image px
+  return { fw: Math.min(1, viewW / (imgW * s)), fh: Math.min(1, viewH / (imgH * s)) };
+}
+/** Centred crop of a W×H picture keeping the fractions fw, fh: whole pixels, never upscaled. null = no crop. */
+export function cropRect(W, H, fw, fh) {
+  if (!(fw < 1) && !(fh < 1)) return null;
+  const w = Math.max(2, Math.min(W, Math.round(W * fw))), h = Math.max(2, Math.min(H, Math.round(H * fh)));
+  return { x: Math.floor((W - w) / 2), y: Math.floor((H - h) / 2), w, h };
+}

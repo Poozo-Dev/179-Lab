@@ -8,6 +8,7 @@
 
 import { FrameSelector } from './timing.js';
 import { CONFIG } from './config.js';
+import { cropRect } from './geometry.js';
 import * as store from './store.js';
 
 const toBlob = (canvas, type, q) => new Promise((res) => canvas.toBlob(res, type, q));
@@ -31,12 +32,14 @@ export class Recorder {
    * chained after them. Resolves when that storage preparation is done (rejects if it failed).
    * `camera` = cameraInfo() at start, `sensorTiltDeg` = level reading at start (or null).
    */
-  start({ intervalMs, toleranceMs, source, camera = null, sensorTiltDeg = null, durationMs = 0 }) {
+  start({ intervalMs, toleranceMs, source, camera = null, sensorTiltDeg = null, durationMs = 0, crop = null }) {
     if (this.recording) return Promise.resolve();
     this.selector = new FrameSelector({ intervalMs, maxFrames: CONFIG.maxFrames });
     this.bufs = null; this.width = this.height = null;
     this.pending = 0; this.saved = 0; this.failure = null;
     this.source = source; this.stopPromise = null; this.durationMs = durationMs;
+    this.cropFrac = crop;          // {fw, fh, zoom}: digital zoom, fixed for the whole recording
+    this.crop = null; this.fullW = this.fullH = null;
     this.session = {
       id: Date.now(), createdAt: new Date().toISOString(), status: 'recording', stopReason: null,
       intervalMs, toleranceMs, gapFactor: CONFIG.gapFactor, durationMs,
@@ -54,18 +57,22 @@ export class Recorder {
   feed(info) {
     if (!this.recording) return;
     if (this.width === null) {
-      this.width = info.width; this.height = info.height;
+      this.fullW = info.width; this.fullH = info.height;
+      const c = this.cropFrac && cropRect(info.width, info.height, this.cropFrac.fw, this.cropFrac.fh);
+      this.crop = c;
+      this.width = c ? c.w : info.width; this.height = c ? c.h : info.height;
+      this.session.crop = c ? { ...c, zoom: this.cropFrac.zoom, fullW: info.width, fullH: info.height } : null;
       this.bufs = [makeCanvas(this.width, this.height), makeCanvas(this.width, this.height)];
       this.session.width = this.width; this.session.height = this.height;
       this.session.sourceMode = this.source.mode; this.session.timeSource = this.source.timeSource;
       this.chain = this.chain.then(() => store.setSession(this.session)).catch((e) => this._fail(e));
-    } else if (info.width !== this.width || info.height !== this.height) {
+    } else if (info.width !== this.fullW || info.height !== this.fullH) {
       this.stop('orientation'); return;
     }
     // use the buffer that does NOT hold the selector's remembered previous frame
     const prevBuf = this.selector.prev && this.selector.prev.buf;
     const buf = prevBuf === this.bufs[0] ? this.bufs[1] : this.bufs[0];
-    info.draw(buf.ctx);
+    info.draw(buf.ctx, this.crop);
     const picked = this.selector.push({ tsMs: info.tsMs, suspect: info.suspect, buf });
     for (const sel of picked) this._capture(sel);
     if (this.selector.done) { this.stop('max'); return; }

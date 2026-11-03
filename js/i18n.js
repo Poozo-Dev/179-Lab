@@ -20,12 +20,12 @@ const EN = {
   'cam.lowStorage': 'There is very little free storage on this phone. Free some space and try again.',
   'cam.noSensor': 'This phone/browser has no motion sensor access, so the level is not available.',
   'cam.sensorDenied': 'Motion sensor access was not allowed, so the level is not available. (Recording works without it.)',
-  'cam.frames': 'Frames', 'cam.retry': 'Try again', 'cam.interval': 'Interval', 'u.s': 's', 'cam.zoom': 'Zoom', 'cam.zoomAria': 'Camera zoom',
+  'cam.frames': 'Frames', 'cam.retry': 'Try again', 'cam.interval': 'Interval', 'u.s': 's', 'cam.zoom': 'Zoom', 'cam.cropTag': '(crop)', 'cam.zoomAria': 'Camera zoom',
   'cam.countdownLbl': 'Countdown', 'cam.durationLbl': 'Stop after', 'cam.manual': 'Manual', 'cam.off': 'Off', 'cam.level': 'Level', 'cam.settings': 'Settings', 'cam.exposure': 'Exposure',
   'cam.expAuto': 'Automatic',
   'cam.expNote': 'A short exposure reduces motion blur but darkens the picture; use bright light.',
   'cam.expTip': 'For moving objects use bright light: the camera then chooses a shorter exposure (less motion blur). A high frame rate alone does not guarantee short exposures.',
-  'cam.zoomNote': 'Zoom uses the camera’s own zoom. Beyond the lens’s optical range it is digital (it crops the picture and adds no detail). Keep zoom and phone position unchanged between calibration and measurement.',
+  'cam.zoomNote': 'Zoom uses the camera’s own zoom when the browser allows it (beyond the lens’s optical range that is digital). Otherwise zoom is a crop: the photo is saved exactly as framed, not enlarged, with no extra detail. Keep zoom and phone position unchanged between calibration and measurement.',
   'cam.version': 'App version', 'cam.start': 'Start', 'cam.stop': 'Stop', 'cam.cancelCd': 'Cancel countdown',
   'cam.confirmAgain': 'Starting a new recording deletes the frames shown here. Continue?',
   'cam.confirmFinish': 'Delete all frames of this experiment? This cannot be undone.',
@@ -75,6 +75,7 @@ const EN = {
   'n.tsSource': (p) => `Timestamp source: ${p.src}.`,
   'ts.processor': 'VideoFrame.timestamp (camera capture clock)', 'ts.capture': 'requestVideoFrameCallback captureTime',
   'ts.presentation': 'requestVideoFrameCallback presentationTime (compatibility mode)',
+  'n.crop': (p) => `Digital zoom ${p.z}×: the photos are the central ${p.w}×${p.h} part of the ${p.fw}×${p.fh} camera picture, copied pixel for pixel (no extra detail, nothing upscaled).`,
   'n.compat': 'Compatibility mode: this browser reports frame times less precisely than Chrome on Android. Treat small time differences with caution.',
   'n.pipeline': 'Times are camera-pipeline timestamps, not sensor exposure times: expect an uncertainty of about one camera frame period.',
   'g.tileAria': (p) => `Frame ${p.i}, ${p.t} seconds`,
@@ -137,12 +138,12 @@ const RU = {
   'cam.lowStorage': 'На телефоне очень мало свободной памяти. Освободите место и попробуйте снова.',
   'cam.noSensor': 'Этот телефон или браузер не даёт доступа к датчику движения, поэтому уровень недоступен.',
   'cam.sensorDenied': 'Доступ к датчику движения не разрешён, поэтому уровень недоступен. (Запись работает и без него.)',
-  'cam.frames': 'Кадры', 'cam.retry': 'Повторить', 'cam.interval': 'Интервал', 'u.s': 'с', 'cam.zoom': 'Зум', 'cam.zoomAria': 'Зум камеры',
+  'cam.frames': 'Кадры', 'cam.retry': 'Повторить', 'cam.interval': 'Интервал', 'u.s': 'с', 'cam.zoom': 'Зум', 'cam.cropTag': '(обрезка)', 'cam.zoomAria': 'Зум камеры',
   'cam.countdownLbl': 'Отсчёт', 'cam.durationLbl': 'Стоп через', 'cam.manual': 'Вручную', 'cam.off': 'Выкл.', 'cam.level': 'Уровень', 'cam.settings': 'Настройки', 'cam.exposure': 'Выдержка',
   'cam.expAuto': 'Автоматически',
   'cam.expNote': 'Короткая выдержка уменьшает смазывание, но делает снимок темнее; нужен яркий свет.',
   'cam.expTip': 'Для движущихся предметов нужен яркий свет: тогда камера сама выбирает более короткую выдержку (меньше смазывание). Высокая частота кадров сама по себе короткую выдержку не гарантирует.',
-  'cam.zoomNote': 'Используется собственный зум камеры. За пределами оптического диапазона объектива он цифровой (обрезает кадр и не добавляет деталей). Не меняйте зум и положение телефона между калибровкой и измерением.',
+  'cam.zoomNote': 'Если браузер даёт доступ к зуму камеры, используется он (за пределами оптического диапазона объектива он цифровой). Иначе зум — это обрезка: снимок сохраняется ровно в видимых границах, без увеличения и без новых деталей. Не меняйте зум и положение телефона между калибровкой и измерением.',
   'cam.version': 'Версия приложения', 'cam.start': 'Старт', 'cam.stop': 'Стоп', 'cam.cancelCd': 'Отменить отсчёт',
   'cam.confirmAgain': 'Новая запись удалит показанные здесь кадры. Продолжить?',
   'cam.confirmFinish': 'Удалить все кадры этого эксперимента? Отменить это будет нельзя.',
@@ -173,7 +174,7 @@ const RU = {
   'g.setScale': 'Задать масштаб…', 'g.changeScale': 'Изменить масштаб…', 'g.removeScale': 'Удалить масштаб',
   'g.setVert': 'Задать вертикаль…', 'g.changeVert': 'Изменить вертикаль…', 'g.removeVert': 'Удалить вертикаль',
   'g.persp': 'Масштаб по двум точкам не исправляет перспективу и искажения объектива: линейка должна лежать в плоскости движения, а камера — смотреть на неё прямо. Если изменился зум или положение телефона, задайте масштаб заново.',
-  'g.timingTable': 'Таблица времени (все кадры)', 'g.again': 'Записать снова', 'g.plot': 'График Y(X)', 'g.finish': 'Завершить и удалить данные',
+  'g.timingTable': 'Таблица времени (все кадры)', 'g.again': 'Записать снова', 'g.plot': 'График Y(X)', 'g.finish': 'Завершить и удалить',
   'g.sub': (p) => `${p.when} · каждые ${p.iv} с · ${p.n} ${ruPlural(p.n, 'кадр', 'кадра', 'кадров')}`,
   'g.passed': (p) => `Проверка времени пройдена: все кадры в пределах ±${p.tol} мс (10 % интервала) от целевого времени (наибольшее отклонение ${p.worst} мс).`,
   'g.failed': 'Проверка времени не пройдена — повторите эксперимент', 'g.noFrames': 'Кадры не записаны.',
@@ -189,6 +190,7 @@ const RU = {
   'n.tsSource': (p) => `Источник меток времени: ${p.src}.`,
   'ts.processor': 'VideoFrame.timestamp (часы захвата камеры)', 'ts.capture': 'requestVideoFrameCallback captureTime',
   'ts.presentation': 'requestVideoFrameCallback presentationTime (режим совместимости)',
+  'n.crop': (p) => `Цифровой зум ${p.z}×: снимки — центральная часть ${p.w}×${p.h} кадра камеры ${p.fw}×${p.fh}, скопированная пиксель в пиксель (без дополнительной детализации и без увеличения).`,
   'n.compat': 'Режим совместимости: этот браузер сообщает время кадров менее точно, чем Chrome на Android. К небольшим разницам во времени относитесь осторожно.',
   'n.pipeline': 'Время берётся из конвейера обработки видео, а не момента экспозиции матрицы: погрешность — примерно один период кадров камеры.',
   'g.tileAria': (p) => `Кадр ${p.i}, ${p.t} с`,
@@ -265,7 +267,7 @@ export function setLang(l) {
 export const onLangChange = (fn) => listeners.push(fn);
 
 export function t(key, p = {}) {
-  const v = DICT[lang][key] ?? EN[key];
+  const v = key in DICT[lang] ? DICT[lang][key] : EN[key];
   if (v === undefined) return key;
   return typeof v === 'function' ? v(p) : v;
 }

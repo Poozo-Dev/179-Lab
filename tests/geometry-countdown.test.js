@@ -79,3 +79,19 @@ test('countdown: cancel stops everything; no go afterwards; can restart', () => 
   assert.equal(c.start(3), true); T.advance(3000); assert.deepEqual(log, ['cancel', 'go']);
   assert.throws(() => new Countdown(T).start(0), RangeError);
 });
+
+import { visibleFraction, cropRect } from '../js/geometry.js';
+
+test('crop zoom: saved crop equals what the preview shows', () => {
+  // 1920×1080 picture in a 360×500 portrait view: contained by width; at 2× half the width is visible,
+  // and vertically the picture (2 × 202.5 px tall) still fits, so all of its height is visible
+  const v = visibleFraction(360, 500, 1920, 1080, 2);
+  near(v.fw, 0.5); near(v.fh, 1);
+  assert.deepEqual(cropRect(1920, 1080, v.fw, v.fh), { x: 480, y: 0, w: 960, h: 1080 });
+  // strong zoom crops both directions; whole pixels, centred, never larger than the picture
+  const z = visibleFraction(360, 500, 1920, 1080, 4);
+  const c = cropRect(1920, 1080, z.fw, z.fh);
+  assert.ok(c.w === 480 && c.h < 1080 && c.x === 720 && Number.isInteger(c.y));
+  assert.deepEqual(visibleFraction(360, 500, 1920, 1080, 1), { fw: 1, fh: 1 });
+  assert.equal(cropRect(1920, 1080, 1, 1), null);                     // no zoom -> no crop
+});

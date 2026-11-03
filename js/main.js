@@ -6,7 +6,7 @@ import { Recorder } from './recorder.js';
 import * as store from './store.js';
 import { showGallery, hideGallery } from './gallery.js';
 import { Countdown, unlockAudio, beep } from './countdown.js';
-import { tiltFromOrientation, AngleSmoother } from './geometry.js';
+import { tiltFromOrientation, AngleSmoother, visibleFraction } from './geometry.js';
 import { t, applyStatic, hasChosen, setLang, onLangChange } from './i18n.js';
 
 // Home-screen web app? (enables the cosmetic bottom-stripe fix in styles.css; nothing else depends on it)
@@ -148,17 +148,26 @@ async function startCamera() {
 }
 el.retry.onclick = startCamera;
 
-// ---------- zoom / exposure (only shown when the camera really supports them) ----------
+// ---------- zoom / exposure ----------
+// Zoom is ALWAYS offered: the camera's own zoom when the browser exposes it (Chrome on Android), otherwise a
+// digital crop: the preview is enlarged and the saved photos are cropped to exactly the visible part, at full
+// camera resolution (pixels copied 1:1, never upscaled, so no detail is invented). Exposure only when supported.
+let cropZoom = 1, nativeZoomFailed = false;
+const zoomMode = () => (cam && cam.zoom && !nativeZoomFailed ? 'native' : 'crop');
+const zoomLabel = (v) => `${Number(v).toFixed(1)}×` + (zoomMode() === 'crop' && v > 1 ? ' ' + t('cam.cropTag') : '');
+function applyCropPreview() { el.video.style.transform = cropZoom > 1 ? `scale(${cropZoom})` : ''; }
 function renderCameraControls() {
   const busy = recorder.recording || countdown.state === 'counting';
-  const z = cam && cam.zoom;
-  el.zoomRow.hidden = !z;
-  if (z) {
+  el.zoomRow.hidden = !cam;
+  if (cam) {
+    const z = zoomMode() === 'native' ? cam.zoom : { min: 1, max: CONFIG.cropZoomMax, step: 0.1, value: cropZoom };
     Object.assign(el.zoom, { min: z.min, max: z.max, step: z.step });
     if (document.activeElement !== el.zoom) el.zoom.value = z.value;
-    el.zoomVal.textContent = `${Number(el.zoom.value).toFixed(1)}×`;
+    el.zoomVal.textContent = zoomLabel(el.zoom.value);
     el.zoom.disabled = busy;                     // the picture geometry must not change during a recording
+    document.getElementById('zoom-out').disabled = document.getElementById('zoom-in').disabled = busy;
   }
+  applyCropPreview();
   const ex = cam && cam.exposure;
   el.expRow.hidden = !ex; el.expTip.hidden = !!ex;
   el.exp.disabled = busy;
@@ -166,7 +175,8 @@ function renderCameraControls() {
 let zoomBusy = false, zoomWanted = null;
 el.zoom.addEventListener('input', async () => {
   zoomWanted = Number(el.zoom.value);
-  el.zoomVal.textContent = `${zoomWanted.toFixed(1)}×`;
+  el.zoomVal.textContent = zoomLabel(zoomWanted);
+  if (zoomMode() === 'crop') { cropZoom = zoomWanted; zoomWanted = null; applyCropPreview(); return; }
   if (zoomBusy) return;
   zoomBusy = true;
   try {
@@ -175,9 +185,19 @@ el.zoom.addEventListener('input', async () => {
       const got = await setZoom(stream, v);
       if (cam && cam.zoom && got !== null) cam.zoom.value = got;
     }
-  } catch (_) { el.zoomRow.hidden = true; }    // advertised but not working: hide rather than pretend
+  } catch (_) {                                 // advertised but broken: switch to the crop and keep the chosen zoom
+    nativeZoomFailed = true; cropZoom = Math.min(CONFIG.cropZoomMax, Math.max(1, zoomWanted !== null ? zoomWanted : Number(el.zoom.value)));
+    zoomWanted = null; renderCameraControls();
+  }
   zoomBusy = false;
 });
+// − / + buttons: same as moving the slider (sliders are fiddly on some phones and browsers)
+for (const [id, d] of [['zoom-out', -0.5], ['zoom-in', 0.5]]) {
+  document.getElementById(id).onclick = () => {
+    const v = Math.min(Number(el.zoom.max), Math.max(Number(el.zoom.min), Math.round((Number(el.zoom.value) + d) * 10) / 10));
+    el.zoom.value = v; el.zoom.dispatchEvent(new Event('input'));
+  };
+}
 function renderExposureOptions() {
   const v = el.exp.value || 'auto';
   el.exp.innerHTML = `<option value="auto">${t('cam.expAuto')}</option>` +
@@ -300,7 +320,10 @@ el.rec.onclick = async () => {
 function beginRecording() {
   if (!source || recorder.recording) return;
   const toleranceMs = intervalMs * CONFIG.toleranceFraction;    // fixed rule: flag frames > 10 % of the interval off
-  const ready = recorder.start({ intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt(), durationMs: durationS * 1000 });
+  const vr = document.getElementById('cam-view').getBoundingClientRect();
+  const vis = zoomMode() === 'crop' ? visibleFraction(vr.width, vr.height, el.video.videoWidth, el.video.videoHeight, cropZoom) : null;
+  const crop = vis && (vis.fw < 1 || vis.fh < 1) ? { ...vis, zoom: cropZoom } : null;
+  const ready = recorder.start({ crop, intervalMs, toleranceMs, source, camera: cameraInfo(stream), sensorTiltDeg: sensorTilt(), durationMs: durationS * 1000 });
   ready.then(() => store.requestPersistence(), () => {});   // a storage failure stops the recorder itself
   el.rec.classList.add('on'); el.rec.setAttribute('aria-label', t('cam.stop')); el.rec.disabled = false;
   el.back.hidden = true;

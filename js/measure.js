@@ -92,7 +92,7 @@ export function coordSystem(setup, imageHeight) {
   const scale = cal ? scaleFromPoints(cal.p1, cal.p2, cal.distance) : null;
   const vert = setup && setup.vert;
   let angleRad = 0;
-  if (vert && vert.mode === 'points') angleRad = angleFromVerticalPoints(vert.p1, vert.p2) ?? 0;
+  if (vert && vert.mode === 'points') { const a = angleFromVerticalPoints(vert.p1, vert.p2); angleRad = a !== null ? a : 0; }
   else if (vert && vert.mode === 'sensor' && Number.isFinite(vert.angleDeg)) angleRad = vert.angleDeg * Math.PI / 180;
   return { H: imageHeight, scale, unit: scale ? cal.unit : 'px', angleRad };
 }
