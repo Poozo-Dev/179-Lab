@@ -33,6 +33,9 @@ Things that are **not** in the README: how to work on this project, what to keep
   has BOTH points. One colour only = plain t, x, y table. Never show a plot automatically.
 - Keep the quality check honest: a doubtful timing must be flagged, not hidden.
 - Test UI changes at a phone size (393×852 or 412×800) with a fake camera before pushing.
+- **Picture first** (camera and photo viewer): the picture area is `flex: 1`; headers are one line with ellipsis,
+  toolbars never wrap, hints are overlays on the picture, controls never cover the camera view. Check at
+  280×560 too (Android text/display zoom makes the page that small) — `--bh` sets toolbar button height.
 - Keep `qr/` in sync with the Pages URL. The QR and poster encode the URL; regenerate them if the URL changes.
 
 ## Do not

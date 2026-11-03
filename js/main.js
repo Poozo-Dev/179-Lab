@@ -189,6 +189,10 @@ el.exp.onchange = async () => {
   catch (_) { el.exp.value = 'auto'; el.expRow.hidden = true; el.expTip.hidden = false; }
 };
 
+// ---------- settings panel (opens above the controls; the camera view shrinks, it is never covered) ----------
+const setBtn = $('btn-settings'), setPanel = $('settings-panel');
+setBtn.onclick = () => { const open = setPanel.hidden; setPanel.hidden = !open; setBtn.setAttribute('aria-expanded', String(open)); };
+
 // ---------- HUD ----------
 let hud = { key: 'cam.starting', p: {}, rec: false };   // remembered so a language change can redraw it
 function setHud(key, p = {}, rec = false) { hud = { key, p, rec }; el.state.textContent = t(key, p); el.state.classList.toggle('rec', rec); }

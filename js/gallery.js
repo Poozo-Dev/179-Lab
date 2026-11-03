@@ -366,7 +366,7 @@ function updateTools() {
   for (const k of ['a', 'b']) {
     const b = k === 'a' ? el.pa : el.pb;
     b.classList.toggle('on', V.target === k);
-    b.textContent = V.target === k ? `● ${k.toUpperCase()} ${t('v.done')}` : `● ${k.toUpperCase()}${m[k] ? ' ' + t('v.move') : ''}`;
+    b.textContent = `${k.toUpperCase()}${V.target === k ? ' ✓' : ''}`;   // short: the toolbar never wraps; colour shows red/blue
   }
   el.stage.classList.toggle('marking', !!V.target);
   el.stage.dataset.target = V.target || '';
@@ -376,7 +376,7 @@ function updateTools() {
   el.clr.hidden = !(V.target === 'a' || V.target === 'b'); el.clr.disabled = !p;
   el.fine.hidden = !V.target;
   for (const b of el.fine.querySelectorAll('.nudge')) b.disabled = !p;
-  el.pos.textContent = p ? posText(p) : t('v.noPoint');   // never empty: keeps the row height
+  el.pos.textContent = p ? posText(p) : '';   // never empty: keeps the row height
   if (setup) {
     el.distWrap.hidden = V.target !== 'cal';
     el.which.textContent = t('v.editing', { k: V.sub === 'p1' ? '1' : '2' });
@@ -483,10 +483,11 @@ el.stage.addEventListener('pointerdown', (e) => {
   V.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, st: performance.now() });
   if (V.pointers.size === 1 && V.target && V.url && curFrame()) {      // marking: touch-and-slide places the point
     V.drag = { id: e.pointerId, before: getPoint() };
+    el.stage.classList.add('dragging');                              // fades the hint so it never hides the spot
     dragTo(e);
   }
   if (V.pointers.size === 2) {
-    if (V.drag) { setPoint(V.drag.before); V.drag = null; el.loupe.hidden = true; renderMarks(); updateTools(); }   // it was a pinch
+    if (V.drag) { setPoint(V.drag.before); V.drag = null; el.loupe.hidden = true; el.stage.classList.remove('dragging'); renderMarks(); updateTools(); }   // it was a pinch
     const [a, b] = [...V.pointers.values()];
     V.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: V.scale, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
   }
@@ -512,7 +513,7 @@ function endPointer(e) {
   if (V.pointers.size < 2) V.pinch = null;
   if (V.drag && V.drag.id === e.pointerId) {
     const wasNew = !V.drag.before;
-    V.drag = null; el.loupe.hidden = true;
+    V.drag = null; el.loupe.hidden = true; el.stage.classList.remove('dragging');
     if (e.type === 'pointercancel') { renderMarks(); updateTools(); return; }
     if (V.draft && wasNew && V.sub === 'p1' && !V.draft.p2) V.sub = 'p2';     // reference points: 1 then 2
     commitPoint(); return;
@@ -544,6 +545,10 @@ el.stage.addEventListener('wheel', (e) => {
   zoomAt(V.scale * Math.exp(-e.deltaY * 0.0015), ax, ay);
 }, { passive: false });
 window.addEventListener('resize', () => { if (V.open) applyView(); });
+// the hint/warning overlay on the photo is shown only when it has something to say
+const vMsg = $('v-msg');
+const refreshMsg = () => vMsg.classList.toggle('empty', !(el.warn.textContent || el.hint.textContent || el.pos.textContent));
+new MutationObserver(refreshMsg).observe(vMsg, { subtree: true, childList: true, characterData: true });
 // any change of the photo area (toolbars, hint text, rotation) must re-place the marks over the picture
 if (typeof ResizeObserver === 'function') new ResizeObserver(() => { if (V.open) applyView(); }).observe(el.stage);
 

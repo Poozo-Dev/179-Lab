@@ -19,19 +19,29 @@
 
   <!-- ===== Screen 1: camera ===== -->
   <section id="screen-camera" hidden>
-    <video id="preview" playsinline muted autoplay></video>
-    <svg id="level" aria-hidden="true" hidden></svg>
-    <div id="countdown" class="countdown" aria-live="assertive" hidden><span id="cd-num"></span></div>
-    <div class="hud">
-      <span id="hud-state" class="pill" data-i18n="cam.starting">Starting camera…</span>
-      <span id="hud-rate" class="pill" hidden></span>
-      <button id="btn-back" class="pill back" data-i18n="cam.frames" hidden>Frames</button>
-    </div>
-    <div id="cam-msg" class="msg" role="alert" hidden>
-      <p id="cam-msg-text"></p>
-      <button id="btn-retry" class="btn" data-i18n="cam.retry">Try again</button>
+    <!-- picture first: the camera view takes all space the controls below do not need, controls never cover it -->
+    <div id="cam-view">
+      <video id="preview" playsinline muted autoplay></video>
+      <svg id="level" aria-hidden="true" hidden></svg>
+      <div id="countdown" class="countdown" aria-live="assertive" hidden><span id="cd-num"></span></div>
+      <div class="hud">
+        <span id="hud-state" class="pill" data-i18n="cam.starting">Starting camera…</span>
+        <span id="hud-rate" class="pill" hidden></span>
+        <button id="btn-back" class="pill back" data-i18n="cam.frames" hidden>Frames</button>
+      </div>
+      <div id="cam-msg" class="msg" role="alert" hidden>
+        <p id="cam-msg-text"></p>
+        <button id="btn-retry" class="btn" data-i18n="cam.retry">Try again</button>
+      </div>
     </div>
     <div class="controls">
+      <div id="settings-panel" class="settings" hidden>
+        <p id="row-exposure" hidden><label><span data-i18n="cam.exposure">Exposure</span> <select id="exposure" class="sel"></select></label><br>
+          <span class="small" data-i18n="cam.expNote">A short exposure reduces motion blur but darkens the picture; use bright light.</span></p>
+        <p id="exposure-tip" class="small" data-i18n="cam.expTip">For moving objects use bright light.</p>
+        <p class="small" data-i18n="cam.zoomNote">Zoom uses the camera's own zoom.</p>
+        <p id="app-version" class="ver"></p>
+      </div>
       <div class="row">
         <span class="lbl" data-i18n="cam.interval">Interval</span>
         <div id="chips" class="chips"></div>
@@ -45,18 +55,11 @@
       <div class="row">
         <label class="lbl"><span data-i18n="cam.countdownLbl">Countdown</span> <select id="countdown-sel" class="sel"></select></label>
         <label class="lbl"><span data-i18n="cam.durationLbl">Stop after</span> <select id="duration-sel" class="sel"></select></label>
-        <button id="btn-level" class="chip" aria-pressed="false" data-i18n="cam.level">Level</button>
       </div>
-      <details class="settings">
-        <summary data-i18n="cam.settings">Settings</summary>
-        <p id="row-exposure" hidden><label><span data-i18n="cam.exposure">Exposure</span> <select id="exposure"></select></label><br>
-          <span class="small" data-i18n="cam.expNote">A short exposure reduces motion blur but darkens the picture; use bright light.</span></p>
-        <p id="exposure-tip" class="small" data-i18n="cam.expTip">For moving objects use bright light: the camera then chooses a shorter exposure (less motion blur). A high frame rate alone does not guarantee short exposures.</p>
-        <p class="small" data-i18n="cam.zoomNote">Zoom uses the camera's own zoom. Beyond the lens's optical range it is digital (it crops the picture and adds no detail). Keep zoom and phone position unchanged between calibration and measurement.</p>
-        <p id="app-version" class="ver"></p>
-      </details>
-      <div class="rec-wrap">
+      <div class="rec-row">
+        <button id="btn-settings" class="chip side" aria-expanded="false" aria-controls="settings-panel" data-i18n="cam.settings">Settings</button>
         <button id="btn-record" class="rec" aria-label="Start" disabled></button>
+        <button id="btn-level" class="chip side" aria-pressed="false" data-i18n="cam.level">Level</button>
       </div>
     </div>
   </section>
@@ -108,11 +111,12 @@
   <!-- ===== Full-screen image viewer ===== -->
   <div id="viewer" hidden>
     <div id="v-top">
-      <button id="v-close" class="vbtn" aria-label="Close" data-i18n-aria="v.close">✕</button>
-      <div id="v-cap"><b id="v-title"></b><span id="v-line"></span><span id="v-warn"></span><span id="v-hint"></span></div>
-      <button id="v-save" class="vbtn" aria-label="Save image" data-i18n-aria="v.saveAria" data-i18n="v.save">Save</button>
+      <button id="v-close" class="vbtn icon" aria-label="Close" data-i18n-aria="v.close">✕</button>
+      <div id="v-cap"><b id="v-title"></b><span class="v-sub"><span id="v-line"></span> · <span id="v-count"></span></span></div>
+      <button id="v-save" class="vbtn icon" aria-label="Save image" data-i18n-aria="v.saveAria"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg></button>
     </div>
-    <div id="v-stage"><img id="v-img" alt="" draggable="false"><svg id="v-marks" aria-hidden="true"></svg><canvas id="v-loupe" hidden></canvas></div>
+    <div id="v-stage"><img id="v-img" alt="" draggable="false"><svg id="v-marks" aria-hidden="true"></svg><canvas id="v-loupe" hidden></canvas>
+      <div id="v-msg" aria-live="polite"><span id="v-warn"></span><span id="v-hint"></span><span id="v-pos"></span></div></div>
     <div id="v-setup" hidden>
       <button id="v-which" class="vbtn"></button>
       <label id="v-dist-wrap"><span data-i18n="v.distance">Distance</span> <input id="v-dist" type="number" inputmode="decimal" min="0" step="any">
@@ -125,19 +129,17 @@
       <button class="vbtn nudge" data-dx="0" data-dy="-1" aria-label="Move up one pixel" data-i18n-aria="v.up">↑</button>
       <button class="vbtn nudge" data-dx="0" data-dy="1" aria-label="Move down one pixel" data-i18n-aria="v.down">↓</button>
       <button class="vbtn nudge" data-dx="1" data-dy="0" aria-label="Move right one pixel" data-i18n-aria="v.right">→</button>
-      <span id="v-pos" class="small"></span>
     </div>
-    <div id="v-tools">
-      <button id="v-pa" class="vbtn tool a">● A</button>
-      <button id="v-pb" class="vbtn tool b">● B</button>
-      <button id="v-clr" class="vbtn" data-i18n="v.clear" hidden>Clear</button>
-      <button id="v-fit" class="vbtn" data-i18n="v.fit">Fit</button>
-      <button id="v-delete" class="vbtn danger" data-i18n="v.delete">Delete</button>
-    </div>
-    <div id="v-bottom">
-      <button id="v-prev" class="vbtn big" aria-label="Previous frame" data-i18n-aria="v.prev">‹</button>
-      <span id="v-count" class="muted"></span>
-      <button id="v-next" class="vbtn big" aria-label="Next frame" data-i18n-aria="v.next">›</button>
+    <div id="v-bar">
+      <button id="v-prev" class="vbtn nav" aria-label="Previous frame" data-i18n-aria="v.prev">‹</button>
+      <div id="v-tools">
+        <button id="v-pa" class="vbtn tool a">A</button>
+        <button id="v-pb" class="vbtn tool b">B</button>
+        <button id="v-clr" class="vbtn icon" aria-label="Clear" data-i18n-aria="v.clear" hidden><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20H9L4 15l9-9 7 7-6 6"/><path d="M7 12l5 5"/></svg></button>
+        <button id="v-delete" class="vbtn icon danger" aria-label="Delete" data-i18n-aria="v.delete"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></svg></button>
+      </div>
+      <button id="v-fit" class="vbtn icon" aria-label="Fit" data-i18n-aria="v.fit"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/></svg></button>
+      <button id="v-next" class="vbtn nav" aria-label="Next frame" data-i18n-aria="v.next">›</button>
     </div>
   </div>
 
