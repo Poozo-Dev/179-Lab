@@ -114,6 +114,7 @@ async function startCamera() {
     stream = s;
     el.video.srcObject = s;
     await el.video.play();
+    layoutPreview();
     if (token !== camToken) return;
     rate.iv = []; rate.last = null;
     const src = new FrameSource(el.video, s, (info) => {
@@ -209,14 +210,34 @@ el.exp.onchange = async () => {
   catch (_) { el.exp.value = 'auto'; el.expRow.hidden = true; el.expTip.hidden = false; }
 };
 
+// ---------- live preview size ----------
+// The preview is sized and centred here in pixels instead of relying on CSS object-fit alone: iPhone Safari
+// (and some WebViews) sometimes keep a playing camera video at an old size after its box changes (settings
+// panel, rotation, lens/zoom switch, return from background), which left a small picture in the middle.
+// Re-run on every event that can change the size, plus twice a second as a safety net.
+const camView = $('cam-view');
+function layoutPreview() {
+  const v = el.video, W = v.videoWidth, H = v.videoHeight;
+  const bw = camView.clientWidth, bh = camView.clientHeight;
+  if (!W || !H || !bw || !bh) { v.style.width = v.style.height = v.style.left = v.style.top = ''; return; }
+  const s = Math.min(bw / W, bh / H), w = Math.round(W * s), h = Math.round(H * s);
+  const css = { width: w + 'px', height: h + 'px', left: Math.round((bw - w) / 2) + 'px', top: Math.round((bh - h) / 2) + 'px' };
+  for (const k in css) if (v.style[k] !== css[k]) v.style[k] = css[k];
+}
+for (const ev of ['loadedmetadata', 'resize', 'playing']) el.video.addEventListener(ev, layoutPreview);
+window.addEventListener('resize', layoutPreview);
+window.addEventListener('orientationchange', () => setTimeout(layoutPreview, 300));
+if (typeof ResizeObserver === 'function') new ResizeObserver(layoutPreview).observe(camView);
+
 // ---------- settings panel (opens above the controls; the camera view shrinks, it is never covered) ----------
 const setBtn = $('btn-settings'), setPanel = $('settings-panel');
-setBtn.onclick = () => { const open = setPanel.hidden; setPanel.hidden = !open; setBtn.setAttribute('aria-expanded', String(open)); };
+setBtn.onclick = () => { const open = setPanel.hidden; setPanel.hidden = !open; setBtn.setAttribute('aria-expanded', String(open)); layoutPreview(); };
 
 // ---------- HUD ----------
 let hud = { key: 'cam.starting', p: {}, rec: false };   // remembered so a language change can redraw it
 function setHud(key, p = {}, rec = false) { hud = { key, p, rec }; el.state.textContent = t(key, p); el.state.classList.toggle('rec', rec); }
 setInterval(() => {
+  if (screen === 'camera') layoutPreview();
   if (screen !== 'camera' || !stream) { el.rate.hidden = true; return; }
   const fps = rate.fps, v = el.video;              // real delivered size and measured rate, not the request
   el.rate.hidden = !(fps > 0);

@@ -45,6 +45,12 @@ for (const [pname, prof] of Object.entries(PROFILES)) for (const [w, h] of SIZES
     }).filter(Boolean), ids);
     for (const [id, why] of r) problems.push(`${id}: ${why}`);
   };
+  // the live picture must fill its area in one direction (contain), whatever happened before
+  const fills = async (label) => {
+    const f = await page.evaluate(() => { const v = document.getElementById('preview').getBoundingClientRect(), c = document.getElementById('cam-view').getBoundingClientRect();
+      return Math.max(v.width / c.width, v.height / c.height); });
+    if (Math.abs(f - 1) > 0.02) problems.push(`preview ${label}: fills only ${Math.round(f * 100)}% of the camera area`);
+  };
   try {
     await page.goto('http://localhost:8100/' + prof.query);
     await page.evaluate(async () => { const s = await import('./js/store.js'); await s.clearAll(); });
@@ -52,14 +58,19 @@ for (const [pname, prof] of Object.entries(PROFILES)) for (const [w, h] of SIZES
     await page.waitForFunction(() => /Ready|Готово/.test(document.getElementById('hud-state').textContent), null, { timeout: 20000 });
     await page.waitForTimeout(400);
     await usable(['btn-record', 'btn-settings', 'btn-level', 'countdown-sel', 'duration-sel', 'interval-input', 'zoom']);
+    await fills('after start');
+    await page.setViewportSize({ width: h, height: w }); await page.waitForTimeout(700); await fills('after rotating');
+    await page.setViewportSize({ width: w, height: h }); await page.waitForTimeout(700); await fills('after rotating back');
     const camView = await page.evaluate(() => document.getElementById('cam-view').getBoundingClientRect().height / innerHeight);
     if (camView < (h < 400 ? 0.5 : 0.55)) problems.push(`camera view only ${Math.round(camView * 100)}% of screen`);
     await tap('#chips .chip >> nth=0');
     if (await page.getAttribute('#chips .chip >> nth=0', 'aria-pressed') !== 'true') problems.push('interval chip does not select');
     await tap('#btn-settings');
     if (await page.isHidden('#settings-panel')) problems.push('settings panel does not open');
+    await page.waitForTimeout(100); await fills('with settings open');
     await usable(['btn-record']);                                       // still reachable with the panel open
     await tap('#btn-settings');
+    await page.waitForTimeout(100); await fills('after closing settings');
     await tap('#btn-level'); await page.waitForTimeout(150);
     const lvl = await page.evaluate(() => ({ on: document.getElementById('btn-level').getAttribute('aria-pressed'), msg: !document.getElementById('cam-msg').hidden }));
     if (pname === 'limited-webview' ? !lvl.msg : lvl.on !== 'true') problems.push('level toggle: no effect/explanation ' + JSON.stringify(lvl));
