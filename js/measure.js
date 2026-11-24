@@ -164,3 +164,92 @@ export function toCsv(table, { frameTimes = true } = {}) {
   }
   return lines.join('\r\n') + '\r\n';
 }
+
+// ---------------- automatic v = 0 point (hidden parabola fit) ----------------
+// Under gravity alone x(t) and y(t) are quadratic in t. Both are fitted (least squares, never shown) and the
+// moment of LOWEST SPEED is found: |v|² = (2·ax·t + bx)² + (2·ay·t + by)² is quadratic in t, so the minimum is
+// exact. For a drop or a vertical throw that speed is 0 (release / top point); for a sideways throw it is the
+// top of the arc, where only the vertical speed is 0 — `still` says which. Speed does not depend on rotating or
+// scaling the axes, so the result is the same in pixels, millimetres or a rotated coordinate system.
+
+function solve3(M, v) {                 // Gaussian elimination with partial pivoting; null if singular
+  const A = M.map((row, i) => [...row, v[i]]);
+  for (let col = 0; col < 3; col++) {
+    let p = col;
+    for (let r = col + 1; r < 3; r++) if (Math.abs(A[r][col]) > Math.abs(A[p][col])) p = r;
+    if (Math.abs(A[p][col]) < 1e-12) return null;
+    [A[col], A[p]] = [A[p], A[col]];
+    for (let r = col + 1; r < 3; r++) {
+      const f = A[r][col] / A[col][col];
+      for (let k = col; k < 4; k++) A[r][k] -= f * A[col][k];
+    }
+  }
+  const x = [0, 0, 0];
+  for (let r = 2; r >= 0; r--) {
+    let s = A[r][3];
+    for (let k = r + 1; k < 3; k++) s -= A[r][k] * x[k];
+    x[r] = s / A[r][r];
+  }
+  return x;
+}
+
+/** Least-squares v = a·t² + b·t + c (t centred and scaled internally). null if < 3 different times. */
+export function fitQuadratic(ts, vs) {
+  const n = ts.length;
+  if (n < 3 || vs.length !== n) return null;
+  const m = ts.reduce((s, t) => s + t, 0) / n;
+  const sc = Math.max(...ts.map((t) => Math.abs(t - m)));
+  if (!(sc > 1e-9)) return null;
+  const u = ts.map((t) => (t - m) / sc);
+  if (new Set(u.map((q) => Math.round(q * 1e6))).size < 3) return null;
+  let s1 = 0, s2 = 0, s3 = 0, s4 = 0, t0 = 0, t1 = 0, t2 = 0;
+  for (let i = 0; i < n; i++) {
+    const q = u[i], y = vs[i];
+    s1 += q; s2 += q * q; s3 += q ** 3; s4 += q ** 4; t0 += y; t1 += q * y; t2 += q * q * y;
+  }
+  const sol = solve3([[s4, s3, s2], [s3, s2, s1], [s2, s1, n]], [t2, t1, t0]);
+  if (!sol) return null;
+  const [A, B, C] = sol;
+  const a = A / (sc * sc), b = B / sc - 2 * A * m / (sc * sc), c = C - B * m / sc + A * m * m / (sc * sc);
+  const at = (t) => (a * t + b) * t + c;
+  const rms = Math.sqrt(vs.reduce((s, v, i) => s + (v - at(ts[i])) ** 2, 0) / n);
+  return { a, b, c, rms, at };
+}
+
+/**
+ * samples: [{t (s), x, y}] in picture pixels, any order. Returns null when no meaningful point exists:
+ * fewer than `minPoints`, a path that is not parabolic (fit error > maxRelRms of the path size, e.g. a
+ * pendulum or a rod end), or (almost) no acceleration. Otherwise { t, x, y, still, inside }:
+ *   still  — the lowest speed is ≈ 0 (below stillRatio of the fastest marked speed): a true v = 0 point
+ *   inside — t lies within the recording, extended by `margin` seconds at both ends
+ */
+export function restPoint(samples, { minPoints = 3, maxRelRms = 0.03, stillRatio = 0.15, margin = 0 } = {}) {
+  if (!samples || samples.length < minPoints) return null;
+  const s = [...samples].sort((p, q) => p.t - q.t), ts = s.map((p) => p.t);
+  const fx = fitQuadratic(ts, s.map((p) => p.x)), fy = fitQuadratic(ts, s.map((p) => p.y));
+  if (!fx || !fy) return null;
+  const ext = Math.max(Math.max(...s.map((p) => p.x)) - Math.min(...s.map((p) => p.x)),
+    Math.max(...s.map((p) => p.y)) - Math.min(...s.map((p) => p.y)));
+  if (!(ext > 0) || Math.max(fx.rms, fy.rms) > maxRelRms * ext) return null;
+  const T = ts[ts.length - 1] - ts[0], A = fx.a * fx.a + fy.a * fy.a;
+  if (!(Math.sqrt(A) * T * T / 2 > 0.02 * ext)) return null;          // practically uniform motion: no turning point
+  const t = -(fx.a * fx.b + fy.a * fy.b) / (2 * A);
+  const speed = (u) => Math.hypot(2 * fx.a * u + fx.b, 2 * fy.a * u + fy.b);
+  const vmax = Math.max(...ts.map(speed));
+  return { t, x: fx.at(t), y: fy.at(t), still: speed(t) <= stillRatio * vmax,
+    inside: t >= ts[0] - margin && t <= ts[ts.length - 1] + margin };
+}
+
+/** Which marked path is a free projectile: the single colour, or the centre of mass (two points + masses). */
+export function restSource(frames, marks, masses) {
+  const info = analyzeMarks(frames, marks), m = validMasses(masses);
+  const out = [];
+  for (const f of frames) {
+    const mk = marks[f.index]; if (!mk) continue;
+    const p = info.mode === 'single' ? mk[info.single] : info.mode === 'two' && m ? centerOfMass(mk.a, mk.b, m) : null;
+    if (p) out.push({ t: f.actualMs / 1000, x: p.x, y: p.y });
+  }
+  if (info.mode === 'single') return { key: info.single, samples: out };
+  if (info.mode === 'two' && m) return { key: 'cm', samples: out };
+  return null;
+}

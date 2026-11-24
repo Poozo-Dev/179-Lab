@@ -26,7 +26,7 @@ export function imageToScreen(v, ix, iy) {
  *   ( cos(beta)·sin(gamma),  -sin(beta),  -cos(beta)·cos(gamma) ).
  * Only its component in the screen plane is used; alpha (compass heading) does not enter.
  */
-export function tiltFromOrientation(betaDeg, gammaDeg, screenAngleDeg = 0, minInPlane = 0.5) {
+export function tiltFromOrientation(betaDeg, gammaDeg, screenAngleDeg = 0, minInPlane = 0.2) {   // 0.2: usable up to ~78° from upright
   if (!Number.isFinite(betaDeg) || !Number.isFinite(gammaDeg)) return null;
   const r = Math.PI / 180, b = betaDeg * r, g = gammaDeg * r;
   let ux = -Math.cos(b) * Math.sin(g), uy = Math.sin(b);   // physical up in device x/y

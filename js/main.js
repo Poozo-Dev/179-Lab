@@ -252,7 +252,7 @@ function onRecUpdate({ elapsedMs, selected }) {
 // Shows the picture's vertical axis (dashed) and the physical vertical from the gravity sensor. Purely an
 // aid: recording never depends on it. Sensor data are noisy and become meaningless when the phone is held
 // nearly flat, which is reported instead of a number.
-const level = { on: false, angle: null, at: 0, smooth: new AngleSmoother(0.25), raf: 0, timer: 0 };
+const level = { session: 0, on: false, angle: null, at: 0, smooth: new AngleSmoother(0.25), raf: 0, timer: 0 };
 const screenAngle = () => {                       // how far the display is rotated from the phone's portrait
   const so = window.screen && window.screen.orientation;
   if (so && Number.isFinite(so.angle)) return so.angle;
@@ -272,12 +272,21 @@ function drawLevel() {
   const cx = W / 2, cy = H / 2, L = Math.min(W, H) * 0.38;
   const fresh = performance.now() - level.at < 1500;
   let out = `<line x1="${cx}" y1="${cy - L}" x2="${cx}" y2="${cy + L}" stroke="#fff" stroke-width="2" stroke-dasharray="8 6" opacity=".85"/>`;
+  // compact readout next to the centre: signed angle, or "—°" while there is no usable reading
+  // (no sensor data yet, or the phone points almost straight down/up, so gravity has no direction in the picture)
+  let label = '—°', col = '#9aa6b2';
   if (fresh && level.angle !== null) {
     const a = level.angle, ok = Math.abs(a) <= CONFIG.levelToleranceDeg, rad = a * Math.PI / 180;
-    const dx = Math.sin(rad) * L, dy = Math.cos(rad) * L, col = ok ? '#35c27a' : '#f2b134';
+    const dx = Math.sin(rad) * L, dy = Math.cos(rad) * L;
+    col = ok ? '#35c27a' : '#f2b134';
     out += `<line x1="${cx - dx}" y1="${cy + dy}" x2="${cx + dx}" y2="${cy - dy}" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`;
     out += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
+    const r1 = Math.round(a * 10) / 10;
+    label = (r1 > 0 ? '+' : r1 < 0 ? '−' : '') + Math.abs(r1).toFixed(1) + '°';
   }
+  const tw = 9 + label.length * 8.2;
+  out += `<rect x="${cx + 12}" y="${cy - 34}" width="${tw}" height="22" rx="11" fill="rgba(0,0,0,.6)"/>` +
+    `<text x="${cx + 12 + tw / 2}" y="${cy - 18}" text-anchor="middle" fill="${col}" font-size="14" font-weight="700" font-family="system-ui, sans-serif">${label}</text>`;
   el.level.innerHTML = out;
 }
 async function setLevel(on) {
@@ -287,16 +296,24 @@ async function setLevel(on) {
     clearInterval(level.timer); el.levelBtn.setAttribute('aria-pressed', 'false'); drawLevel(); return;
   }
   if (typeof DeviceOrientationEvent === 'undefined') { showMsg(t('cam.noSensor'), false); return; }
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {      // iOS: must be asked from a tap
-    let r = 'denied';
-    try { r = await DeviceOrientationEvent.requestPermission(); } catch (_) {}
-    if (r !== 'granted') { showMsg(t('cam.sensorDenied'), false); return; }
+  // iOS Safari and newer Chrome: ask from the tap. The answer is only a hint: some browsers say "denied" yet
+  // deliver data (or the reverse), so the level always starts, and only if NO data arrives does it explain and stop.
+  let perm = 'granted';
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try { perm = await DeviceOrientationEvent.requestPermission(); } catch (_) { perm = 'unknown'; }
   }
   level.on = true; level.angle = null; level.at = 0; level.smooth = new AngleSmoother(0.25);
   window.addEventListener('deviceorientation', onOrientation);
   el.levelBtn.setAttribute('aria-pressed', 'true');
-  level.timer = setInterval(drawLevel, 500);               // also reports "no data" when the sensor is silent
+  level.timer = setInterval(drawLevel, 500);               // also redraws "—°" when the sensor is silent
   drawLevel();
+  const token = ++level.session;
+  setTimeout(() => {
+    if (level.on && token === level.session && !level.at) {
+      setLevel(false);
+      showMsg(t(perm === 'granted' ? 'cam.noSensor' : 'cam.sensorDenied'), false);
+    }
+  }, 1500);
 }
 el.levelBtn.onclick = () => setLevel(!level.on);
 const sensorTilt = () => (level.on && level.angle !== null && performance.now() - level.at < 1000 ? level.angle : null);

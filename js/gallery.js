@@ -5,7 +5,7 @@ import * as store from './store.js';
 import { saveBlob } from './save.js';
 import { openPlot } from './plot.js';
 import { POINTS, CM_CSS, normalizeMarks, analyzeMarks, validMasses, centerOfMass, coordSystem,
-  buildTable, cellValue, toCsv } from './measure.js';
+  buildTable, cellValue, toCsv, toWorld, restPoint, restSource } from './measure.js';
 import { screenToImage, imageToScreen, fitScale } from './geometry.js';
 import { t, getLang, setLang, onLangChange } from './i18n.js';
 
@@ -13,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 const el = {
   screen: $('screen-gallery'), sub: $('g-sub'), quality: $('g-quality'), notes: $('g-notes'),
   grid: $('g-grid'), table: $('g-table'), again: $('btn-again'), finish: $('btn-finish'), plot: $('btn-plot'),
-  mStatus: $('m-status'), mTable: $('m-table'), csv: $('btn-csv'),
+  mStatus: $('m-status'), mRest: $('m-rest'), mTable: $('m-table'), csv: $('btn-csv'),
   cDesc: $('c-desc'), cal: $('btn-cal'), calClear: $('btn-cal-clear'),
   vert: $('btn-vert'), vertSensor: $('btn-vert-sensor'), vertClear: $('btn-vert-clear'),
   viewer: $('viewer'), stage: $('v-stage'), img: $('v-img'), title: $('v-title'), line: $('v-line'), warn: $('v-warn'),
@@ -137,6 +137,30 @@ function renderGallery(keepScroll) {
   refreshMeasurements();
 }
 
+// ================================ automatic v = 0 point ================================
+// From the marked path of a free projectile (the single colour, or the centre of mass with masses) a hidden
+// parabola fit gives the moment of lowest speed: v = 0 for a drop / vertical throw, the top of the arc for a
+// sideways throw. It is placed on the recorded frame nearest to that moment and recomputed after every change.
+function refreshRest() {
+  state.rest = null;
+  const src = restSource(state.frames, state.marks, state.setup.masses);
+  const iv = state.session.intervalMs / 1000;
+  const r = src && restPoint(src.samples, { margin: iv });
+  if (r && r.inside && state.frames.length) {
+    let best = state.frames[0];
+    for (const f of state.frames) if (Math.abs(f.actualMs / 1000 - r.t) < Math.abs(best.actualMs / 1000 - r.t)) best = f;
+    state.rest = { ...r, key: src.key, frame: best.index };
+  }
+  state.frames.forEach((f, i) => { if (tiles[i]) tiles[i].classList.toggle('rest', !!state.rest && state.rest.frame === f.index); });
+  if (!state.rest) { el.mRest.textContent = ''; el.mRest.hidden = true; renderMarks(); return; }
+  const cs = coordSystem(state.setup, imageH()), w = toWorld(state.rest, cs);
+  const p = { who: t(src.key === 'cm' ? 'pt.cm' : 'pt.' + src.key), t: state.rest.t.toFixed(3), i: state.rest.frame + 1,
+    x: fmtNum(w.x, cs.unit), y: fmtNum(w.y, cs.unit), unit: U(cs.unit) };
+  el.mRest.textContent = t(state.rest.still ? 'm.rest' : 'm.restTop', p);
+  el.mRest.hidden = false;
+  renderMarks();
+}
+
 // ================================ measurements ================================
 const posText = (p) => `x ${p.x.toFixed(1)}, y ${p.y.toFixed(1)} ${U('px')}`;
 const COL = { 'a.x': 'col.xa', 'a.y': 'col.ya', 'b.x': 'col.xb', 'b.y': 'col.yb', 'cm.x': 'col.xcm', 'cm.y': 'col.ycm' };
@@ -174,6 +198,7 @@ function refreshMeasurements() {
     status += table.masses ? t('m.masses', { ma: table.masses.a, mb: table.masses.b, both: info.paired }) : t('m.noMasses');
   }
   el.mStatus.textContent = status;
+  refreshRest();
   el.plot.disabled = !info.canPlot;
 
   el.mTable.innerHTML = '';
@@ -403,6 +428,12 @@ function renderMarks() {
       if (Number(idx) === curIdx) continue;
       if (m.a) out += dot(S(m.a), 4, 'rgba(255,45,45,.45)', 'stroke="rgba(255,255,255,.7)" stroke-width="1"');
       if (m.b) out += dot(S(m.b), 4, 'rgba(47,123,255,.5)', 'stroke="rgba(255,255,255,.7)" stroke-width="1"');
+    }
+    const rp = state.rest;                                         // automatic v = 0 point (computed, not draggable)
+    if (rp && rp.frame === curIdx) {
+      const s = S(rp), lbl = t(rp.still ? 'v.rest' : 'v.top');
+      out += `<circle cx="${s.x}" cy="${s.y}" r="12" fill="none" stroke="#ffd23f" stroke-width="2.5" stroke-dasharray="4 3"/>` + dot(s, 2.2, '#ffd23f');
+      out += `<text x="${s.x + 15}" y="${s.y + 18}" fill="#000" font-size="13" font-weight="700" paint-order="stroke" stroke="#ffd23f" stroke-width="4">${lbl}</text>`;
     }
     const m = state.marks[curIdx];
     if (m) {

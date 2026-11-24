@@ -48,7 +48,11 @@ Things that are **not** in the README: how to work on this project, what to keep
 - **Do not remove or change the standalone stripe fix** in `styles.css` (`html.standalone` class set in `main.js`, the `::after` extension blocks, the `:has(...)` background rules, the gallery visibility rule). It was tested for three rounds; small CSS changes to `html`/`body` backgrounds can bring the grey stripe back.
 - **Do not use the class name `rec` for anything except the record button.** The button's circle styling uses `.rec`; a pill with that class got the button's look. The REC pill uses `.pill.rec`.
 - **Do not add `setInterval(takePhoto, …)`** or anything that picks frames by timer instead of camera timestamps.
-- **Do not fit curves** to the measured trajectories or the centre of mass (the parabola fit was removed on request in v1.7).
+- **Do not show fitted curves** (the visible parabola fit was removed on request in v1.7). The only fit is hidden:
+  `measure.restPoint` finds the automatic v = 0 point (lowest speed of a free projectile: the single colour, or the
+  centre of mass with masses — never the rod ends) and gives up on paths that are not parabolic.
+- Level: start listening even when `requestPermission` says no (newer Chrome has it too); only report "not
+  allowed" when no data arrives. The readout shows "—°" when the phone points almost straight up/down.
 - **Do not rotate saved photos**; a vertical reference rotates the measurement axes only.
 - **Do not commit credentials**, API keys or personal data (the repo is public).
 - **Do not add a backend, accounts or analytics.**

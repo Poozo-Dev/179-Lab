@@ -47,8 +47,12 @@ vertical from the phone's motion sensor), **Zoom** (only if the camera offers it
    *Set vertical…* — touch two points on something truly vertical, or *Use phone level* (the sensor angle saved at
    the start of the recording). Origin is the bottom-left corner of the picture, x right, y up; a vertical reference
    rotates the **axes**, never the photo. Raw pixel marks are kept and everything is recomputed when the setup changes.
-4. **Export CSV** saves the table (with units, target time and deviation; empty cells where a point is missing).
-5. **Delete** in the viewer removes a frame immediately; **Undo** appears for 8 s.
+4. **Automatic v = 0 point:** for a single-colour path (or the centre of mass) the app fits a hidden parabola and
+   marks the moment of lowest speed with a yellow dashed ring "v=0" on the nearest frame (the time is shown under
+   *Measurements*). For a drop or a vertical throw that is v = 0; for a sideways throw it is the top of the arc and is
+   labelled "v min". Not shown for paths that are not parabolic.
+5. **Export CSV** saves the table (with units, target time and deviation; empty cells where a point is missing).
+6. **Delete** in the viewer removes a frame immediately; **Undo** appears for 8 s.
 
 If the timing check fails (⚠ on frames, red banner) the app tells you to repeat the experiment — it never
 silently presents doubtful times as good ones.
