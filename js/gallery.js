@@ -303,7 +303,7 @@ function openViewer(i, target = null) {
 }
 function closeViewer(silent) {
   if (!V.open) return;
-  V.open = false; V.target = null; V.draft = null; V.drag = null; V.token++; el.viewer.hidden = true;
+  V.open = false; V.target = null; V.draft = null; V.drag = null; V.token++; el.viewer.hidden = true; closeDeleteMenu();
   el.marks.innerHTML = ''; el.loupe.hidden = true;
   el.img.removeAttribute('src');
   if (V.url) { URL.revokeObjectURL(V.url); V.url = null; V.blob = null; }
@@ -599,6 +599,7 @@ el.fine.addEventListener('click', (e) => {
 });
 window.addEventListener('keydown', (e) => {
   if (!V.open) return;
+  if (!sheet.root.hidden) { if (e.key === 'Escape') closeDeleteMenu(); return; }   // menu open: keys only close it
   const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   if (V.target && arrows[e.key] && getPoint()) { e.preventDefault(); nudge(...arrows[e.key]); return; }
   if (e.key === 'ArrowLeft') go(-1);
@@ -644,38 +645,67 @@ el.setupOk.onclick = () => {
   persistSetup();
 };
 
-// ============================ deleting a frame ============================
-// Immediate, with a short Undo. For trimming a recording that started too early or ended too late. Frame
-// numbers and time stamps of the remaining frames are NOT changed (they stay the real measured values),
-// and the timing check, tables and derived results are re-evaluated for what is left.
-let undo = null, toastTimer = 0;
-function hideToast() { clearTimeout(toastTimer); el.toast.hidden = true; undo = null; }
+// ============================ deleting frames ============================
+// The bin opens a small menu: only this frame, all frames before it, or all after it (to trim a recording that
+// started too early or ended too late). Deleting is immediate in the app, with one Undo for the whole action.
+// The images stay in storage, listed as pending, until the Undo offer ends (or the next start), so Undo needs no
+// copy of the photos in memory. Frame numbers and time stamps of the remaining frames are NOT changed, and the
+// timing check, tables and derived results are re-evaluated for what is left.
+let undo = null, toastTimer = 0, pending = [];
+async function commitPending() {
+  if (!pending.length) return;
+  pending = [];
+  try { await store.finalizePendingDelete(); } catch (_) {}
+}
+function hideToast() { clearTimeout(toastTimer); el.toast.hidden = true; undo = null; commitPending(); }
 function showToast(text, onUndo) {
   clearTimeout(toastTimer);
   el.toastText.textContent = text; el.toastUndo.hidden = !onUndo; el.toast.hidden = false;
   undo = onUndo;
   toastTimer = setTimeout(hideToast, 8000);
 }
-el.toastUndo.onclick = async () => { const u = undo; hideToast(); if (u) await u(); };
+el.toastUndo.onclick = async () => { const u = undo; undo = null; clearTimeout(toastTimer); el.toast.hidden = true; if (u) await u(); };
 
-el.del.onclick = async () => {
-  const f = curFrame(); if (!f) return;
-  let image = null;
-  try { image = await store.getImage(f.index); } catch (_) {}
-  try { await store.deleteFrame(f.index); }
+async function deleteFrames(list) {
+  if (!list.length) return;
+  await commitPending();                                          // an earlier deletion is now final
+  const cur = curFrame(), gone = new Set(list.map((f) => f.index)), savedMarks = {};
+  try { await store.setPendingDelete([...gone]); }
   catch (e) { el.hint.textContent = t('v.deleteErr') + e.message; return; }
-  const mark = state.marks[f.index];
-  state.frames.splice(V.i, 1);                                   // the next frame now sits at the same position
-  delete state.marks[f.index];
-  if (mark) { try { await store.setMarks(state.marks); } catch (_) {} }
+  pending = [...gone];
+  for (const idx of gone) if (state.marks[idx]) { savedMarks[idx] = state.marks[idx]; delete state.marks[idx]; }
+  state.frames = state.frames.filter((f) => !gone.has(f.index));
+  if (Object.keys(savedMarks).length) { try { await store.setMarks(state.marks); } catch (_) {} }
   renderGallery(true);
-  showToast(t('v.deleted', { i: f.index + 1 }), image ? async () => {
-    try { await store.putFrame(f, image); } catch (e) { showToast(t('v.restoreErr') + e.message); return; }
-    state.frames.push(f); state.frames.sort((a, b) => a.index - b.index);
-    if (mark) { state.marks[f.index] = mark; try { await store.setMarks(state.marks); } catch (_) {} }
+  showToast(list.length === 1 ? t('v.deleted', { i: list[0].index + 1 }) : t('v.deletedN', { n: list.length }), async () => {
+    pending = [];
+    try { await store.setPendingDelete([]); } catch (e) { showToast(t('v.restoreErr') + e.message); return; }
+    state.frames = state.frames.concat(list).sort((a, b) => a.index - b.index);
+    Object.assign(state.marks, savedMarks);
+    if (Object.keys(savedMarks).length) { try { await store.setMarks(state.marks); } catch (_) {} }
     renderGallery(true);
-    if (V.open) show(state.frames.indexOf(f));
-  } : null);
+    if (V.open) show(Math.max(0, state.frames.indexOf(cur)));
+  });
   if (!state.frames.length) { closeViewer(); return; }
-  show(Math.min(V.i, state.frames.length - 1));                  // next frame (or the previous one if the last was deleted)
-};
+  // stay on the current frame if it is kept, otherwise go to the next one (or the previous one at the end)
+  const keep = state.frames.indexOf(cur);
+  show(keep >= 0 ? keep : Math.min(V.i, state.frames.length - 1));
+}
+
+const sheet = { root: $('del-sheet'), title: $('del-title'), self: $('del-this'), before: $('del-before'), after: $('del-after'), cancel: $('del-cancel') };
+function openDeleteMenu() {
+  const f = curFrame(); if (!f) return;
+  const nb = V.i, na = state.frames.length - 1 - V.i;
+  sheet.title.textContent = t('v.delTitle', { i: f.index + 1 });
+  sheet.self.textContent = t('v.delThis');
+  sheet.before.textContent = t('v.delBefore', { n: nb }); sheet.before.disabled = nb === 0;
+  sheet.after.textContent = t('v.delAfter', { n: na }); sheet.after.disabled = na === 0;
+  sheet.root.hidden = false;
+}
+const closeDeleteMenu = () => { sheet.root.hidden = true; };
+el.del.onclick = openDeleteMenu;
+sheet.cancel.onclick = closeDeleteMenu;
+sheet.root.addEventListener('click', (e) => { if (e.target === sheet.root) closeDeleteMenu(); });   // tap outside the box
+sheet.self.onclick = () => { closeDeleteMenu(); deleteFrames([curFrame()]); };
+sheet.before.onclick = () => { closeDeleteMenu(); deleteFrames(state.frames.slice(0, V.i)); };
+sheet.after.onclick = () => { closeDeleteMenu(); deleteFrames(state.frames.slice(V.i + 1)); };

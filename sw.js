@@ -6,7 +6,7 @@
 // answering from the old cache. So a page can never mix files of two versions (an old index.html with new
 // JavaScript broke the gallery on some Android phones in v1.10.0).
 // A redeploy arrives on the next launch after the one that downloaded it ("two opens").
-const VERSION = '1.10.1';
+const VERSION = '1.10.2';
 const CACHE = 'physlab-' + VERSION;
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest',

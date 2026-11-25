@@ -109,10 +109,43 @@ for (const [pname, prof] of Object.entries(PROFILES)) for (const [w, h] of SIZES
     await tap('#v-pa');
     await tap('#v-next'); await page.waitForTimeout(150);
     if (!/\b2\b/.test(await page.textContent('#v-title'))) problems.push('next frame does not work');
-    await tap('#v-delete'); await page.waitForTimeout(250);
-    if (await page.isHidden('#toast')) problems.push('delete gives no undo');
-    else { await usable(['toast-undo']); await tap('#toast-undo'); }
+    // ---- delete menu: on frame 2 of N -> before = 1, after = N-2
+    const N = await page.evaluate(() => document.querySelectorAll('.tile').length);
+    const frameNo = () => page.textContent('#v-title');
+    const tiles = () => page.evaluate(() => document.querySelectorAll('.tile').length);
+    const t0 = await frameNo();
+    await tap('#v-delete'); await page.waitForTimeout(150);
+    if (await page.isHidden('#del-sheet')) problems.push('bin does not open the delete menu');
+    await usable(['del-this', 'del-before', 'del-after', 'del-cancel']);
+    const txt = await page.evaluate(() => ['del-before', 'del-after'].map((id) => document.getElementById(id).textContent));
+    if (!txt[0].includes('(1)') || !txt[1].includes(`(${N - 2})`)) problems.push('menu counts wrong ' + JSON.stringify(txt));
+    await tap('#del-cancel'); await page.waitForTimeout(100);
+    if (!(await page.isHidden('#del-sheet')) || (await tiles()) !== N) problems.push('cancel does not just close');
+    // tap outside the box closes too
+    await tap('#v-delete'); await page.waitForTimeout(100);
+    await page.mouse.click(5, 5).catch(() => {}); if (touch) await page.touchscreen.tap(5, 5); await page.waitForTimeout(100);
+    if (!(await page.isHidden('#del-sheet'))) problems.push('tap outside does not close the menu');
+    const undoNow = async (what, want) => {
+      if (await page.isHidden('#toast')) { problems.push(what + ': no undo message'); return; }
+      await usable(['toast-undo']); await tap('#toast-undo'); await page.waitForTimeout(300);
+      if ((await tiles()) !== want) problems.push(`${what}: undo restored ${await tiles()} of ${want}`);
+      if ((await frameNo()) !== t0) problems.push(`${what}: after undo the viewer shows ${await frameNo()}`);
+    };
+    // before
+    await tap('#v-delete'); await page.waitForTimeout(100); await tap('#del-before'); await page.waitForTimeout(350);
+    if ((await tiles()) !== N - 1) problems.push(`before: ${await tiles()} frames left, want ${N - 1}`);
+    if (!(await frameNo()).includes(t0.split(' ')[1])) problems.push('before: current frame not kept on screen: ' + (await frameNo()));
+    await undoNow('before', N);
+    // after
+    await tap('#v-delete'); await page.waitForTimeout(100); await tap('#del-after'); await page.waitForTimeout(350);
+    if ((await tiles()) !== 2) problems.push(`after: ${await tiles()} frames left, want 2`);
+    await undoNow('after', N);
+    // only this, then let it become final and reload: the frame must stay gone
+    await tap('#v-delete'); await page.waitForTimeout(100); await tap('#del-this'); await page.waitForTimeout(350);
+    if ((await tiles()) !== N - 1) problems.push(`this: ${await tiles()} frames left, want ${N - 1}`);
     await tap('#v-fit'); await tap('#v-close');
+    await page.reload(); await page.waitForSelector('#screen-gallery:not([hidden])'); await page.waitForTimeout(300);
+    if ((await tiles()) !== N - 1) problems.push(`deleted frame came back after reload (${await tiles()} of ${N - 1})`);
   } catch (e) { problems.push('CRASH ' + e.message.split('\n')[0]); }
   if (errs.length) problems.push('JS errors: ' + errs.join('; '));
   const ok = !problems.length; if (!ok) fails++;

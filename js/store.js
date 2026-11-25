@@ -68,6 +68,18 @@ export const putFrame = (frameRec, imageRec) => run(['frames', 'images'], 'readw
 export const deleteFrame = (index) => run(['frames', 'images'], 'readwrite', (tx) => {
   tx.objectStore('frames').delete(index); tx.objectStore('images').delete(index);
 });
+// Several frames in ONE transaction (all or nothing).
+export const deleteFrames = (indices) => run(['frames', 'images'], 'readwrite', (tx) => {
+  for (const i of indices) { tx.objectStore('frames').delete(i); tx.objectStore('images').delete(i); }
+});
+// Deleting is two-step so that Undo needs no copy of the images in memory: the frames are first listed as
+// pending (hidden everywhere), and only removed for good when the Undo offer ends or at the next start.
+const getPending = () => run('meta', 'readonly', (tx) => tx.objectStore('meta').get('pendingDelete')).then((p) => p || []);
+export const setPendingDelete = (indices) => run('meta', 'readwrite', (tx) => { tx.objectStore('meta').put(indices, 'pendingDelete'); });
+export async function finalizePendingDelete() {
+  const p = await getPending();
+  if (p.length) { await deleteFrames(p); await setPendingDelete([]); }
+}
 export const clearAll = () => run(['meta', 'frames', 'images'], 'readwrite', (tx) => {
   tx.objectStore('meta').clear(); tx.objectStore('frames').clear(); tx.objectStore('images').clear();
 });

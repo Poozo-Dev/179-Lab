@@ -293,3 +293,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }   /* no extra f
 /* automatic v = 0 point */
 .rest-line { color: #ffd23f; margin: -4px 0 10px; }
 .tile.rest { border-color: #ffd23f; }
+
+/* ---- delete menu: an overlay above the photo viewer (the viewer's layout never changes) ---- */
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 25; background: rgba(0,0,0,.55);
+  display: flex; align-items: flex-end; justify-content: center; padding: 12px 12px calc(var(--safe-b) + 12px); }
+.sheet-box { width: 100%; max-width: 420px; max-height: 100%; overflow: auto; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.sheet-title { margin: 0 0 2px; text-align: center; color: var(--muted); font-size: 14px; }
+.sheet-box .btn { width: 100%; min-height: 44px; padding: 6px 12px; white-space: normal; line-height: 1.25; }
+.sheet-box .btn:disabled { opacity: .35; }

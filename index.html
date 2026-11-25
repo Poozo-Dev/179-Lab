@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="app-version" content="1.10.1">   <!-- = APP_VERSION in js/config.js (tests/sw.test.js checks) -->
+  <meta name="app-version" content="1.10.2">   <!-- = APP_VERSION in js/config.js (tests/sw.test.js checks) -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0f14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -168,6 +168,17 @@
       <div class="btns"><button id="p-masses" class="chip" data-i18n="p.masses">Masses…</button></div>
       <div id="p-wrap"><canvas id="p-canvas"></canvas></div>
       <ul id="p-info" class="notes"></ul>
+    </div>
+  </div>
+
+  <!-- ===== Delete menu (over the photo viewer; does not change its layout) ===== -->
+  <div id="del-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="del-title" hidden>
+    <div class="sheet-box">
+      <p id="del-title" class="sheet-title"></p>
+      <button id="del-this" class="btn danger"></button>
+      <button id="del-before" class="btn danger"></button>
+      <button id="del-after" class="btn danger"></button>
+      <button id="del-cancel" class="btn" data-i18n="v.cancel">Cancel</button>
     </div>
   </div>
 

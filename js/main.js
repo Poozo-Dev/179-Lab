@@ -381,6 +381,7 @@ async function goGallery(notice) {
   let session, frames, marks = {}, setup = {};
   try {
     session = await store.getSession();
+    if (session) await store.finalizePendingDelete();       // frames deleted earlier whose Undo was never used
     frames = session ? await store.listFrames() : [];
     if (session) { marks = await store.getMarks(); setup = await store.getSetup(); }
   } catch (e) { storageOk = false; await showCameraScreen(); showMsg(e.message, false); return; }
