@@ -464,4 +464,15 @@ async function boot() {
   }
   showCameraScreen();
 }
-boot();
+// Page and code must be the same version. If not (an update was half-way through on this phone), reload once:
+// the service worker then serves one complete version. Guarded so it can never loop.
+function versionMismatch() {
+  try {
+    const m = document.querySelector('meta[name="app-version"]'), want = APP_VERSION.split(' ')[0];
+    if (m && m.content === want) return false;
+    if (sessionStorage.getItem('physlab.reloadFor') === want) return false;   // already tried once
+    sessionStorage.setItem('physlab.reloadFor', want);
+    return true;
+  } catch (_) { return false; }
+}
+if (versionMismatch()) location.reload(); else boot();

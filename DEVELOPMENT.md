@@ -14,7 +14,10 @@ Things that are **not** in the README: how to work on this project, what to keep
 ## Workflow
 
 - Repo: `https://github.com/Poozo-Dev/179-Lab`, branch `main`, served by GitHub Pages at `https://poozo-dev.github.io/179-Lab/`. A push to `main` is the deploy.
-- **Bump `APP_VERSION` in `js/config.js` on every deploy**, so the phone shows which version it runs ("App version … " under *Settings*).
+- **Bump the version in three places on every deploy** (tests fail otherwise): `APP_VERSION` in `js/config.js`,
+  `VERSION` in `sw.js` (each version gets its own complete offline cache, so a phone never mixes files of two
+  versions) and `<meta name="app-version">` in `index.html` (a page/code mismatch reloads once by itself).
+- `APP_VERSION` in `js/config.js`, so the phone shows which version it runs ("App version … " under *Settings*).
 - After a deploy the phone needs **two** opens (the service worker serves the cached copy first, then updates it). Force-close the app between the opens.
 - Before deploying a UI change, run the cross-platform usability matrix `tools/ui-matrix.mjs` (usage at its top):
   Chrome-style, native zoom, broken native zoom and a limited Safari/WebView-like profile (no VideoFrame, sensors,
@@ -22,7 +25,7 @@ Things that are **not** in the README: how to work on this project, what to keep
 - Keep the JavaScript parseable by older Android WebViews (Huawei, DuckDuckGo): no `?.`, `??`, and use
   top/right/bottom/left instead of the CSS `inset` shorthand.
 - Run unit tests before pushing: `node --test tests/*.test.js` (note the glob; `node --test tests/` fails on Node 22).
-- Changing which files the service worker precaches (`sw.js` `SHELL` list) or making a larger shell change: bump `CACHE` in `sw.js` (currently `physlab-shell-v4`).
+- New files must be added to the `SHELL` list in `sw.js` (tests/sw.test.js checks every imported module is there).
 - The Windows folder `LabCode` on the user's PC is a manual mirror of the repo. Keep it in sync if the user uses it, but never treat it as the source of truth.
 - Git commits/PRs created by Claude carry the Co-Authored-By and Claude-Session lines.
 - Routine jobs (file search, log reading, renames, one-line edits, simple commands) can go to the `haiku-helper` subagent (`.claude/agents/haiku-helper.md`). CLAUDE.md has the rules.

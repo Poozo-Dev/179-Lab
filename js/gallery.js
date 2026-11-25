@@ -143,6 +143,10 @@ function renderGallery(keepScroll) {
 // sideways throw. It is placed on the recorded frame nearest to that moment and recomputed after every change.
 function refreshRest() {
   state.rest = null;
+  if (!el.mRest) {                                   // page from an older version without the line: add it
+    el.mRest = document.createElement('p'); el.mRest.id = 'm-rest'; el.mRest.className = 'small rest-line'; el.mRest.hidden = true;
+    el.mStatus.after(el.mRest);
+  }
   const src = restSource(state.frames, state.marks, state.setup.masses);
   const iv = state.session.intervalMs / 1000;
   const r = src && restPoint(src.samples, { margin: iv });
@@ -198,7 +202,6 @@ function refreshMeasurements() {
     status += table.masses ? t('m.masses', { ma: table.masses.a, mb: table.masses.b, both: info.paired }) : t('m.noMasses');
   }
   el.mStatus.textContent = status;
-  refreshRest();
   el.plot.disabled = !info.canPlot;
 
   el.mTable.innerHTML = '';
@@ -233,6 +236,8 @@ function refreshMeasurements() {
     });
   };
   renderCoordInfo();
+  // last and isolated: an extra must never stop the table, the buttons or the Undo message from appearing
+  try { refreshRest(); } catch (_) {}
 }
 
 function renderCoordInfo() {

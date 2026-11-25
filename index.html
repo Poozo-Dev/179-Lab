@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="app-version" content="1.10.1">   <!-- = APP_VERSION in js/config.js (tests/sw.test.js checks) -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0f14">
   <meta name="mobile-web-app-capable" content="yes">
@@ -90,11 +91,11 @@
       <summary data-i18n="g.coords">Scale &amp; vertical (coordinate system)</summary>
       <p id="c-desc" class="small"></p>
       <div class="btns">
-        <button id="btn-cal" class="btn">Set scale…</button>
+        <button id="btn-cal" class="btn" data-i18n="g.setScale">Set scale…</button>
         <button id="btn-cal-clear" class="btn" data-i18n="g.removeScale" hidden>Remove scale</button>
       </div>
       <div class="btns">
-        <button id="btn-vert" class="btn">Set vertical…</button>
+        <button id="btn-vert" class="btn" data-i18n="g.setVert">Set vertical…</button>
         <button id="btn-vert-sensor" class="btn" hidden></button>
         <button id="btn-vert-clear" class="btn" data-i18n="g.removeVert" hidden>Remove vertical</button>
       </div>
