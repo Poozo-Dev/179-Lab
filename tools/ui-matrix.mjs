@@ -123,7 +123,7 @@ for (const [pname, prof] of Object.entries(PROFILES)) for (const [w, h] of SIZES
     if (!(await page.isHidden('#del-sheet')) || (await tiles()) !== N) problems.push('cancel does not just close');
     // tap outside the box closes too
     await tap('#v-delete'); await page.waitForTimeout(100);
-    await page.mouse.click(5, 5).catch(() => {}); if (touch) await page.touchscreen.tap(5, 5); await page.waitForTimeout(100);
+    if (touch) await page.touchscreen.tap(5, 5); else await page.mouse.click(5, 5); await page.waitForTimeout(100);
     if (!(await page.isHidden('#del-sheet'))) problems.push('tap outside does not close the menu');
     const undoNow = async (what, want) => {
       if (await page.isHidden('#toast')) { problems.push(what + ': no undo message'); return; }
@@ -146,7 +146,7 @@ for (const [pname, prof] of Object.entries(PROFILES)) for (const [w, h] of SIZES
     await tap('#v-fit'); await tap('#v-close');
     await page.reload(); await page.waitForSelector('#screen-gallery:not([hidden])'); await page.waitForTimeout(300);
     if ((await tiles()) !== N - 1) problems.push(`deleted frame came back after reload (${await tiles()} of ${N - 1})`);
-  } catch (e) { problems.push('CRASH ' + e.message.split('\n')[0]); }
+  } catch (e) { problems.push('CRASH ' + e.message.split('\n').slice(0, 3).join(' / ')); }
   if (errs.length) problems.push('JS errors: ' + errs.join('; '));
   const ok = !problems.length; if (!ok) fails++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${pname.padEnd(15)} ${String(w + '×' + h).padEnd(9)} ${lang} ${touch ? 'touch' : 'mouse'}${ok ? '' : '\n      ' + problems.join('\n      ')}`);
